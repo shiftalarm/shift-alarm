@@ -4,6 +4,7 @@ package com.shiftalarm.app
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -42,12 +43,17 @@ class AlarmService : Service() {
             AlarmScheduler.EXTRA_SHIFT_CODE
         ) ?: "Shift"
 
+        val date = intent?.getStringExtra(
+            AlarmScheduler.EXTRA_DATE
+        ) ?: ""
+
         val reminder = intent?.getIntExtra(
             AlarmScheduler.EXTRA_REMINDER, 0
         ) ?: 0
 
         val notification = buildNotification(
             shiftCode,
+            date,
             reminder
         )
 
@@ -64,7 +70,7 @@ class AlarmService : Service() {
         startAlarmSound()
         startVibration()
 
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun createNotificationChannel() {
@@ -86,8 +92,42 @@ class AlarmService : Service() {
         }
     }
 
+    private fun createActionPendingIntent(
+        action: String,
+        shiftCode: String,
+        date: String,
+        requestCode: Int
+    ): PendingIntent {
+
+        val intent = Intent(
+            this,
+            AlarmActionReceiver::class.java
+        ).apply {
+            this.action = action
+
+            putExtra(
+                AlarmScheduler.EXTRA_SHIFT_CODE,
+                shiftCode
+            )
+
+            putExtra(
+                AlarmScheduler.EXTRA_DATE,
+                date
+            )
+        }
+
+        return PendingIntent.getBroadcast(
+            this,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
     private fun buildNotification(
         shiftCode: String,
+        date: String,
         reminder: Int
     ): Notification {
 
@@ -97,6 +137,20 @@ class AlarmService : Service() {
             "Dinas $shiftCode dimulai $reminder menit lagi"
         }
 
+        val stopIntent = createActionPendingIntent(
+            AlarmActionReceiver.ACTION_STOP,
+            shiftCode,
+            date,
+            10001
+        )
+
+        val snoozeIntent = createActionPendingIntent(
+            AlarmActionReceiver.ACTION_SNOOZE,
+            shiftCode,
+            date,
+            10002
+        )
+
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("SHIFT ALARM")
@@ -104,7 +158,18 @@ class AlarmService : Service() {
             .setCategory(Notification.CATEGORY_ALARM)
             .setPriority(Notification.PRIORITY_MAX)
             .setOngoing(true)
+            .setAutoCancel(false)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .addAction(
+                android.R.drawable.ic_media_pause,
+                "STOP",
+                stopIntent
+            )
+            .addAction(
+                android.R.drawable.ic_media_play,
+                "SNOOZE 5 MENIT",
+                snoozeIntent
+            )
             .build()
     }
 
@@ -146,6 +211,7 @@ class AlarmService : Service() {
             val manager = getSystemService(
                 Context.VIBRATOR_MANAGER_SERVICE
             ) as VibratorManager
+
             manager.defaultVibrator
         } else {
             @Suppress("DEPRECATION")
@@ -174,6 +240,7 @@ class AlarmService : Service() {
             } catch (_: Exception) {
             }
         }
+
         mediaPlayer = null
     }
 
