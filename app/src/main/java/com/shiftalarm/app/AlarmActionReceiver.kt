@@ -47,14 +47,18 @@ class AlarmActionReceiver : BroadcastReceiver() {
             ACTION_SNOOZE -> {
                 scheduler.cancelSnooze()
 
-                scheduler.scheduleSnooze(
-                    shiftCode,
-                    date
-                )
-
                 context.stopService(
                     Intent(context, AlarmService::class.java)
                 )
+
+                try {
+                    scheduler.scheduleSnooze(
+                        shiftCode,
+                        date
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     }
