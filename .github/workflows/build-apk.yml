@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Debug APK
+    name: Diagnose and Build Shift Alarm
     runs-on: ubuntu-latest
 
     steps:
@@ -27,11 +27,53 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Grant Execute Permission
-        run: chmod +x gradlew
+      - name: Diagnose AndroidManifest.xml
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
 
-      - name: Build Debug APK with Diagnostics
-        run: ./gradlew assembleDebug --stacktrace --info --warning-mode all
+          path = Path("app/src/main/AndroidManifest.xml")
+
+          print("=== MANIFEST DIAGNOSTICS ===")
+          print("File exists:", path.exists())
+
+          if not path.exists():
+              raise SystemExit("ERROR: AndroidManifest.xml NOT FOUND")
+
+          raw = path.read_bytes()
+
+          print("File size:", len(raw), "bytes")
+          print("First 32 bytes:", repr(raw[:32]))
+          print("UTF-8 BOM:", raw.startswith(b'\xef\xbb\xbf'))
+
+          print("\n=== FILE CONTENT WITH LINE NUMBERS ===")
+
+          try:
+              content = raw.decode("utf-8")
+          except UnicodeDecodeError as e:
+              print("UTF-8 ERROR:", e)
+              raise SystemExit(1)
+
+          for number, line in enumerate(content.splitlines(), 1):
+              print(f"{number:03}: {line}")
+
+          print("\n=== XML VALIDATION ===")
+
+          try:
+              ET.fromstring(raw)
+              print("SUCCESS: XML syntax is valid.")
+          except ET.ParseError as e:
+              print("XML PARSE ERROR:", e)
+              raise SystemExit(1)
+
+          print("\n=== END DIAGNOSTICS ===")
+          PY
+
+      - name: Build Debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace --info --warning-mode all
 
       - name: Upload Shift Alarm APK
         if: success()
