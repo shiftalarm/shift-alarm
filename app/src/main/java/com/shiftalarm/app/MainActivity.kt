@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
-import android.view.ViewGroup
 import android.widget.*
 import java.time.LocalDate
 
@@ -279,6 +278,18 @@ class MainActivity : Activity() {
 
         if (::statusText.isInitialized) {
             refreshSchedule()
+
+            if (scheduler.canScheduleExactAlarms()) {
+                store.getAllShifts().forEach { (date, code) ->
+                    try {
+                        if (!date.isBefore(LocalDate.now())) {
+                            scheduler.scheduleShift(date, code)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
         }
     }
 
