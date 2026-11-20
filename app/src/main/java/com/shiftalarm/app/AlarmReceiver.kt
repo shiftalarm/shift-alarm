@@ -46,7 +46,8 @@ class AlarmReceiver : BroadcastReceiver() {
             }
             manager.createNotificationChannel(channel)
         }
-        val message = AlarmPreferences(context).getReminderText().replace("{shift}", shiftCode)
+        val language = context.getSharedPreferences("shift_alarm_appearance", Context.MODE_PRIVATE).getString("language", "id") ?: "id"
+        val message = AlarmPreferences(context).getReminderText(language).replace("{shift}", shiftCode)
         val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(context, ATTENDANCE_CHANNEL_ID)
         else {
             @Suppress("DEPRECATION")
