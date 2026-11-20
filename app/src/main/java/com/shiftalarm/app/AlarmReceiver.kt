@@ -22,7 +22,9 @@ class AlarmReceiver : BroadcastReceiver() {
         val reminderMinutes = intent.getIntExtra(AlarmScheduler.EXTRA_REMINDER, 0)
 
         if (!isSnooze && reminderMinutes == AlarmScheduler.ATTENDANCE_REMINDER_MINUTES) {
-            showAttendanceReminder(context, shiftCode)
+            if (AlarmPreferences(context).isAttendanceReminderEnabled()) {
+                showAttendanceReminder(context, shiftCode, date)
+            }
             return
         }
 
@@ -45,7 +47,7 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun showAttendanceReminder(context: Context, shiftCode: String) {
+    private fun showAttendanceReminder(context: Context, shiftCode: String, date: String) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -66,21 +68,21 @@ class AlarmReceiver : BroadcastReceiver() {
             @Suppress("DEPRECATION")
             Notification.Builder(context).setPriority(Notification.PRIORITY_DEFAULT)
         }.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("Persiapan Dinas $shiftCode")
-            .setContentText("30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap.")
+            .setContentTitle("SHIFT ALARM")
+            .setContentText("Persiapan Dinas $shiftCode — 30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap.")
             .setStyle(
                 Notification.BigTextStyle().bigText(
-                    "30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap."
+                    "SHIFT ALARM — Persiapan Dinas $shiftCode — 30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap."
                 )
             )
             .setCategory(Notification.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setOngoing(false)
-            .setTimeoutAfter(10_000L)
+            .setTimeoutAfter(60_000L)
             .build()
 
         try {
-            manager.notify(ATTENDANCE_NOTIFICATION_ID, notification)
+            manager.notify("$date-$shiftCode".hashCode(), notification)
         } catch (e: SecurityException) {
             // Izin notifikasi boleh dimatikan; alarm utama tetap dijadwalkan terpisah.
         }
