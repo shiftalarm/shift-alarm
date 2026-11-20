@@ -184,7 +184,7 @@ class MainActivity : Activity() {
     }
 
     private fun renderTab(tab: Int, animate: Boolean) {
-        val page = ScrollView(this).apply { isFillViewport = true; setBackgroundColor(backgroundColor) }
+        val page = ScrollView(this).apply { isFillViewport = true; setBackgroundColor(Color.TRANSPARENT) }
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(18), dp(18), dp(24))
@@ -456,7 +456,7 @@ class MainActivity : Activity() {
         val reminder=card()
         reminder.addView(label(tr("TEKS PENGINGAT","REMINDER MESSAGE"),13f,primaryText,true))
         space(reminder,8)
-        reminder.addView(label(prefs.getReminderText(),12f,secondaryText,false))
+        reminder.addView(label(prefs.getReminderText(language),12f,secondaryText,false))
         space(reminder,8)
         reminder.addView(actionButton(tr("UBAH TEKS PENGINGAT","EDIT REMINDER TEXT"),accent){editReminderText()})
         reminder.addView(actionButton(tr("RESET KE TEKS DEFAULT","RESET DEFAULT MESSAGE"),Color.rgb(100,112,130)){
@@ -560,7 +560,7 @@ class MainActivity : Activity() {
     }
 
     private fun editReminderText() {
-        val input=EditText(this).apply { setText(prefs.getReminderText());minLines=3;maxLines=5;hint=tr("Gunakan {shift} untuk kode shift","Use {shift} for the shift code") }
+        val input=EditText(this).apply { setText(prefs.getReminderText(language));minLines=3;maxLines=5;hint=tr("Gunakan {shift} untuk kode shift","Use {shift} for the shift code") }
         android.app.AlertDialog.Builder(this).setTitle(tr("Teks pengingat 30 menit","30-minute reminder text"))
             .setMessage(tr("Kamu bisa memakai {shift} agar kode shift otomatis ditampilkan.","You can use {shift} to insert the shift code automatically."))
             .setView(input).setNegativeButton(tr("Batal","Cancel"),null)
