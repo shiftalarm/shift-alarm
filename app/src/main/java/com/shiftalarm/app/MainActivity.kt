@@ -441,12 +441,39 @@ class MainActivity : Activity() {
     }
 
     private fun previewAlarmTone() {
-        try {
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Pratinjau Nada Alarm")
+            .setMessage("Tekan Putar untuk mendengarkan nada yang dipilih. Gunakan Stop untuk menghentikannya.")
+            .setPositiveButton("Putar", null)
+            .setNeutralButton("Stop", null)
+            .setNegativeButton("Tutup") { _, _ ->
+                previewRingtone?.stop()
+                previewRingtone = null
+            }
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                try {
+                    previewRingtone?.stop()
+                    val uri = alarmPreferences.getRingtoneUri()
+                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    previewRingtone = uri?.let { RingtoneManager.getRingtone(this, it) }
+                    if (previewRingtone != null) previewRingtone?.play()
+                    else Toast.makeText(this, "Nada alarm tidak tersedia", Toast.LENGTH_LONG).show()
+                } catch (_: Exception) {
+                    Toast.makeText(this, "Nada tidak dapat diputar", Toast.LENGTH_LONG).show()
+                }
+            }
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                previewRingtone?.stop()
+                previewRingtone = null
+            }
+        }
+        dialog.setOnDismissListener {
             previewRingtone?.stop()
-            val uri = alarmPreferences.getRingtoneUri() ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            previewRingtone = uri?.let { RingtoneManager.getRingtone(this, it) }
-            previewRingtone?.play()
-        } catch (_: Exception) { Toast.makeText(this, "Nada tidak dapat diputar", Toast.LENGTH_LONG).show() }
+            previewRingtone = null
+        }
+        dialog.show()
     }
 
     @Deprecated("Deprecated in Android API")
