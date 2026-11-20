@@ -25,6 +25,7 @@ class AttendanceReminderService : Service() {
     private var fallbackAttempted = false
     private var notificationDetached = false
     private var activeShiftCode = "Shift"
+    private var currentNotificationId = 2031
 
     companion object {
         private const val TAG = "ShiftAttendanceReminder"
@@ -57,9 +58,9 @@ class AttendanceReminderService : Service() {
 
     private fun startAsForeground(notification: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            startForeground(currentNotificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         } else {
-            startForeground(NOTIFICATION_ID, notification)
+            startForeground(currentNotificationId, notification)
         }
     }
 
@@ -85,7 +86,7 @@ class AttendanceReminderService : Service() {
             action = ACTION_DISMISS
         }
         val dismiss = PendingIntent.getService(
-            this, NOTIFICATION_ID, dismissIntent,
+            this, currentNotificationId, dismissIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -125,7 +126,7 @@ class AttendanceReminderService : Service() {
             next.setDataSource(this, uri)
             next.setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             )
@@ -173,7 +174,7 @@ class AttendanceReminderService : Service() {
         runCatching {
             stopForeground(STOP_FOREGROUND_DETACH)
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-                .notify(NOTIFICATION_ID, buildNotification(activeShiftCode, ongoing = false))
+                .notify(currentNotificationId, buildNotification(activeShiftCode, ongoing = false))
             notificationDetached = true
         }.onFailure { Log.e(TAG, "Unable to retain reminder notification", it) }
         stopSelf()
