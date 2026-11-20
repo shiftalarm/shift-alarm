@@ -44,6 +44,7 @@ class AttendanceReminderService : Service() {
         currentNotificationId = intent?.getIntExtra(EXTRA_NOTIFICATION_ID, NOTIFICATION_ID) ?: NOTIFICATION_ID
         if (intent?.action == ACTION_DISMISS) {
             stopPlayer()
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(currentNotificationId)
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
