@@ -13,7 +13,6 @@ import android.os.Build
 class AlarmReceiver : BroadcastReceiver() {
 
     companion object {
-        const val ATTENDANCE_CHANNEL_ID = "shift_attendance_reminder_v2"
         const val ATTENDANCE_NOTIFICATION_ID = 2030
     }
 
@@ -50,29 +49,26 @@ class AlarmReceiver : BroadcastReceiver() {
 
     private fun showAttendanceReminder(context: Context, shiftCode: String, date: String) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val reminderText = AlarmPreferences(context).getAttendanceReminderText()
+        val prefs = AlarmPreferences(context)
+        val reminderText = prefs.getAttendanceReminderText()
+        val soundUri = prefs.getAttendanceRingtoneUri() ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val channelId = "shift_attendance_v3_" + (soundUri?.toString()?.hashCode()?.toUInt()?.toString(16) ?: "default")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                ATTENDANCE_CHANNEL_ID,
-                "Pengingat Absen",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
+            val channel = NotificationChannel(channelId, "Pengingat Absen", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Pengingat persiapan dinas 30 menit sebelum alarm utama"
                 setShowBadge(false)
-                setSound(
-                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
-                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build()
-                )
+                enableVibration(true)
+                setSound(soundUri, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build())
             }
             manager.createNotificationChannel(channel)
         }
 
         val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(context, ATTENDANCE_CHANNEL_ID)
+            Notification.Builder(context, channelId)
         } else {
             @Suppress("DEPRECATION")
-            Notification.Builder(context).setPriority(Notification.PRIORITY_DEFAULT)
+            Notification.Builder(context).setPriority(Notification.PRIORITY_HIGH).setSound(soundUri)
         }.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Persiapan Dinas $shiftCode")
             .setContentText(reminderText)
