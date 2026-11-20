@@ -3,6 +3,8 @@ package com.shiftalarm.app
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -11,7 +13,7 @@ import android.os.Build
 class AlarmReceiver : BroadcastReceiver() {
 
     companion object {
-        const val ATTENDANCE_CHANNEL_ID = "shift_attendance_reminder_v1"
+        const val ATTENDANCE_CHANNEL_ID = "shift_attendance_reminder_v2"
         const val ATTENDANCE_NOTIFICATION_ID = 2030
     }
 
@@ -25,7 +27,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
         if (!isSnooze && alarmType == AlarmScheduler.ALARM_TYPE_START &&
             reminderMinutes == AlarmScheduler.ATTENDANCE_REMINDER_MINUTES) {
-            showAttendanceReminder(context, shiftCode)
+            showAttendanceReminder(context, shiftCode, date)
             return
         }
 
@@ -46,7 +48,7 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun showAttendanceReminder(context: Context, shiftCode: String) {
+    private fun showAttendanceReminder(context: Context, shiftCode: String, date: String) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val reminderText = AlarmPreferences(context).getAttendanceReminderText()
 
@@ -58,6 +60,10 @@ class AlarmReceiver : BroadcastReceiver() {
             ).apply {
                 description = "Pengingat persiapan dinas 30 menit sebelum alarm utama"
                 setShowBadge(false)
+                setSound(
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build()
+                )
             }
             manager.createNotificationChannel(channel)
         }
@@ -74,11 +80,10 @@ class AlarmReceiver : BroadcastReceiver() {
             .setCategory(Notification.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setOngoing(false)
-            .setTimeoutAfter(10_000L)
             .build()
 
         try {
-            manager.notify(ATTENDANCE_NOTIFICATION_ID, notification)
+            manager.notify((date + "-" + shiftCode).hashCode(), notification)
         } catch (_: SecurityException) {
             // Izin notifikasi boleh dimatikan; alarm utama tetap dijadwalkan terpisah.
         }
