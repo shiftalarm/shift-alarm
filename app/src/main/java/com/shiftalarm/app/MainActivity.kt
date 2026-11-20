@@ -22,6 +22,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -33,6 +34,7 @@ class MainActivity : Activity() {
     private lateinit var alarmPreferences: AlarmPreferences
     private var previewRingtone: Ringtone? = null
     private lateinit var content: LinearLayout
+    private lateinit var bottomNavigation: LinearLayout
     private lateinit var monthLabel: TextView
     private lateinit var calendarGrid: GridLayout
     private lateinit var selectedDateLabel: TextView
@@ -139,16 +141,24 @@ class MainActivity : Activity() {
     }
 
     private fun buildDashboard() {
-        val scroll = ScrollView(this).apply {
-            setBackgroundColor(backgroundColor)
-            isFillViewport = true
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(backgroundColor) }
+        val topBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(20), dp(10), dp(20), dp(10)); setBackgroundColor(backgroundColor)
         }
-        content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(18), dp(20), dp(30))
-        }
+        topBar.addView(label("SMART SHIFT SCHEDULE & ALARM", 12f, secondaryText, true), LinearLayout.LayoutParams(0, dp(42), 1f))
+        topBar.addView(actionButton(if (darkMode) "☼" else "☾", accent) { toggleAppearanceMode() }, LinearLayout.LayoutParams(dp(48), dp(42)))
+        root.addView(topBar, LinearLayout.LayoutParams(-1, -2))
+        val scroll = ScrollView(this).apply { setBackgroundColor(backgroundColor); isFillViewport = true; clipToPadding = false }
+        content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(10), dp(20), dp(20)) }
         scroll.addView(content)
-        setContentView(scroll)
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        bottomNavigation = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+            setPadding(dp(10), dp(8), dp(10), dp(8)); setBackgroundColor(cardColor)
+        }
+        root.addView(bottomNavigation, LinearLayout.LayoutParams(-1, -2))
+        setContentView(root)
         renderDashboard()
     }
 
@@ -166,43 +176,12 @@ class MainActivity : Activity() {
             return
         }
 
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        brand.addView(label("SHIFT ALARM", 23f, primaryText, true))
-        brand.addView(label("SMART SHIFT SCHEDULE & ALARM", 10f, secondaryText, true))
-        header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
-        val appearance = actionButton(if (darkMode) "☼" else "☾", accent) {
-            toggleAppearanceMode()
-        }
-        header.addView(appearance, LinearLayout.LayoutParams(dp(48), dp(44)))
-        content.addView(header)
-        addSpace(18)
-
         val hero = card()
-        hero.addView(label("DASHBOARD", 11f, accent, true))
+        hero.addView(label(tr("JADWAL DINAS ANDA", "YOUR SHIFT SCHEDULE"), 11f, accent, true))
         addSpaceTo(hero, 8)
-        hero.addView(label("Atur dinas,\nbiarkan alarm mengingatkan.", 23f, primaryText, true))
+        hero.addView(label(tr("Atur jadwal, biarkan alarm mengingatkan.", "Set your schedule and let the alarm remind you."), 22f, primaryText, true))
         addSpaceTo(hero, 8)
-        hero.addView(label("Jadwal tersimpan otomatis menjadi pengingat 30 menit dan alarm utama.", 13f, secondaryText, false))
-        addSpaceTo(hero, 14)
-        val heroActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        heroActions.addView(actionButton("PILIH WARNA TEMA", accent) {
-            openThemeSettings()
-        }, LinearLayout.LayoutParams(0, dp(42), 1f))
-        heroActions.addView(spaceView(10))
-        heroActions.addView(actionButton("IZIN ALARM", if (scheduler.canScheduleExactAlarms()) Color.rgb(43, 166, 124) else Color.rgb(205, 139, 48)) {
-            openExactAlarmSettings()
-        }, LinearLayout.LayoutParams(0, dp(42), 1f))
-        hero.addView(heroActions)
-        addSpaceTo(hero, 10)
-        hero.addView(actionButton("PILIH WALLPAPER", Color.rgb(91, 105, 132)) { openWallpaperSettings() })
-        addSpaceTo(hero, 8)
-        hero.addView(actionButton("PENGATURAN SUARA ALARM", Color.rgb(61, 91, 125)) { openSoundSettings() })
-        addSpaceTo(hero, 8)
-        hero.addView(actionButton("PENGATURAN PENGINGAT ABSEN", Color.rgb(61, 91, 125)) { openAttendanceReminderSettings() })
+        hero.addView(label(tr("Jadwal tersimpan otomatis mengaktifkan alarm mulai, alarm selesai, dan pengingat absen 30 menit sebelumnya.", "Saved schedules automatically activate start, end, and 30-minute attendance reminders."), 13f, secondaryText, false))
         content.addView(hero)
         addSpace(16)
 
@@ -219,7 +198,7 @@ class MainActivity : Activity() {
 
         val calendarCard = card()
         val calendarHeader = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        calendarHeader.addView(label("KALENDER DINAS", 13f, primaryText, true), LinearLayout.LayoutParams(0, -2, 1f))
+        calendarHeader.addView(label(tr("KALENDER DINAS", "SHIFT CALENDAR"), 13f, primaryText, true), LinearLayout.LayoutParams(0, -2, 1f))
         calendarHeader.addView(actionButton("‹", accent) {
             displayedMonth = displayedMonth.minusMonths(1)
             renderDashboard()
@@ -237,20 +216,18 @@ class MainActivity : Activity() {
         calendarGrid = GridLayout(this).apply { columnCount = 7; alignmentMode = GridLayout.ALIGN_BOUNDS }
         calendarCard.addView(calendarGrid)
         addSpaceTo(calendarCard, 10)
-        calendarCard.addView(label("Warna menandai jenis shift. Ketuk tanggal untuk memilih atau mengubah jadwal.", 11f, secondaryText, false))
+        calendarCard.addView(label(tr("Warna menandai jenis shift. Ketuk tanggal untuk memilih atau mengubah jadwal.", "Colors indicate shift types. Tap a date to select or edit its schedule."), 11f, secondaryText, false))
         content.addView(calendarCard)
         renderCalendar()
         addSpace(18)
 
         val editor = card()
-        editor.addView(label("ATUR JADWAL DINAS", 13f, primaryText, true))
+        editor.addView(label(tr("ATUR JADWAL DINAS", "SET SHIFT SCHEDULE"), 13f, primaryText, true))
         addSpaceTo(editor, 12)
         selectedDateLabel = label("", 16f, accent, true)
         editor.addView(selectedDateLabel)
         addSpaceTo(editor, 10)
-        editor.addView(actionButton("PILIH TANGGAL LAIN", accent) { openDatePicker() })
-        addSpaceTo(editor, 12)
-        editor.addView(label("Pilih kode shift", 12f, secondaryText, true))
+        editor.addView(label(tr("Pilih kode shift", "Choose shift code"), 12f, secondaryText, true))
         addSpaceTo(editor, 6)
         shiftSpinner = Spinner(this)
         val options = ShiftDefinitions.all.map { "${it.code}   •   ${it.startTime} – ${it.endTime}" }
@@ -279,41 +256,27 @@ class MainActivity : Activity() {
         if (selectedIndex >= 0) shiftSpinner.setSelection(selectedIndex)
         editor.addView(shiftSpinner, LinearLayout.LayoutParams(-1, dp(48)))
         addSpaceTo(editor, 8)
-        editor.addView(label("Pengaturan jam khusus tanggal ini", 11f, secondaryText, true))
+        editor.addView(label(tr("Pengaturan jam khusus tanggal ini", "Custom times for this date"), 11f, secondaryText, true))
         addSpaceTo(editor, 6)
         val alarmTimeActions = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        alarmTimeActions.addView(actionButton("ATUR JAM MULAI", accent) { openAlarmTimePicker(AlarmScheduler.ALARM_TYPE_START) },
+        alarmTimeActions.addView(actionButton(tr("ATUR JAM MULAI", "SET START TIME"), accent) { openAlarmTimePicker(AlarmScheduler.ALARM_TYPE_START) },
             LinearLayout.LayoutParams(0, dp(44), 1f))
         alarmTimeActions.addView(View(this), LinearLayout.LayoutParams(dp(8), 1))
-        alarmTimeActions.addView(actionButton("ATUR JAM PULANG", Color.rgb(61, 91, 125)) { openAlarmTimePicker(AlarmScheduler.ALARM_TYPE_END) },
+        alarmTimeActions.addView(actionButton(tr("ATUR JAM SELESAI", "SET END TIME"), Color.rgb(61, 91, 125)) { openAlarmTimePicker(AlarmScheduler.ALARM_TYPE_END) },
             LinearLayout.LayoutParams(0, dp(44), 1f))
         editor.addView(alarmTimeActions)
         addSpaceTo(editor, 12)
-        editor.addView(actionButton("SIMPAN JADWAL", accent) { saveSchedule() })
+        editor.addView(actionButton(tr("SIMPAN JADWAL", "SAVE SCHEDULE"), accent) { saveSchedule() })
         addSpaceTo(editor, 8)
-        editor.addView(actionButton("HAPUS JADWAL TANGGAL INI", Color.rgb(190, 75, 87)) { removeSchedule() })
+        editor.addView(actionButton(tr("HAPUS JADWAL TANGGAL INI", "DELETE THIS DATE"), Color.rgb(190, 75, 87)) { removeSchedule() })
         addSpaceTo(editor, 12)
         statusText = label("", 12f, secondaryText, false)
         editor.addView(statusText)
         content.addView(editor)
         refreshStatus()
-        addSpace(18)
-
-        val summary = card()
-        summary.addView(label("RINGKASAN JADWAL", 13f, primaryText, true))
-        addSpaceTo(summary, 8)
-        scheduleSummary = label("", 13f, secondaryText, false)
-        summary.addView(scheduleSummary)
-        content.addView(summary)
-        updateScheduleSummary()
-
-        addSpace(20)
-        val footer = label("SHIFT ALARM  •  © 2026 mahendradba", 10f, secondaryText, true)
-        footer.gravity = Gravity.CENTER
-        content.addView(footer)
         addBottomNavigation()
     }
 
@@ -351,7 +314,9 @@ class MainActivity : Activity() {
                 val dateText = label(date.format(DateTimeFormatter.ofPattern("dd MMM yyyy", currentLocale())), 13f, primaryText, true)
                 row.addView(dateText, LinearLayout.LayoutParams(0, -2, 1f))
                 row.addView(label(code, 13f, accent, true))
-                row.addView(label("   " + (shift?.startTime ?: "--:--") + "–" + (shift?.endTime ?: "--:--"), 11f, secondaryText, false))
+                val startShown = shift?.let { alarmPreferences.getStartAlarmTime(date, it.startTime) }?.toString() ?: "--:--"
+                val endShown = shift?.let { alarmPreferences.getEndAlarmTime(date, it.endTime) }?.toString() ?: "--:--"
+                row.addView(label("   $startShown–$endShown", 11f, secondaryText, false))
                 row.setOnClickListener {
                     selectedDate = date
                     displayedMonth = YearMonth.from(date)
@@ -364,11 +329,6 @@ class MainActivity : Activity() {
             }
         }
         content.addView(summaryCard)
-        addSpace(14)
-        content.addView(actionButton("KEMBALI KE HOME", accent) {
-            currentTab = "home"
-            renderDashboard()
-        })
     }
 
     private fun renderProfileScreen() {
@@ -412,18 +372,14 @@ class MainActivity : Activity() {
         profile.addView(actionButton(tr("PENGINGAT ABSEN", "ATTENDANCE REMINDER"), Color.rgb(61, 91, 125)) { openAttendanceReminderSettings() })
         addSpaceTo(profile, 8)
         profile.addView(actionButton(tr("IZIN ALARM TEPAT", "EXACT ALARM PERMISSION"), Color.rgb(61, 91, 125)) { openExactAlarmSettings() })
+        val footer = label("SHIFT ALARM  •  © 2026 mahendradba", 10f, secondaryText, true).apply { gravity = Gravity.CENTER }
+        profile.addView(footer, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         content.addView(profile)
     }
 
     private fun addBottomNavigation() {
-        addSpace(16)
-        val nav = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-            background = rounded(cardColor, 18)
-        }
-        val tabs = listOf("home" to "HOME", "summary" to tr("RINGKASAN", "SUMMARY"), "profile" to tr("PROFIL", "PROFILE"))
+        bottomNavigation.removeAllViews()
+        val tabs = listOf("home" to tr("HOME", "HOME"), "summary" to tr("RINGKASAN", "SUMMARY"), "profile" to tr("PROFIL", "PROFILE"))
         tabs.forEach { (key, title) ->
             val selected = currentTab == key
             val button = TextView(this).apply {
@@ -434,16 +390,10 @@ class MainActivity : Activity() {
                 setTextColor(if (selected) Color.WHITE else secondaryText)
                 background = rounded(if (selected) accent else cardColor, 12)
                 setPadding(dp(10), dp(13), dp(10), dp(13))
-                setOnClickListener {
-                    currentTab = key
-                    renderDashboard()
-                }
+                setOnClickListener { currentTab = key; renderDashboard() }
             }
-            nav.addView(button, LinearLayout.LayoutParams(0, dp(44), 1f).apply {
-                marginStart = dp(4); marginEnd = dp(4)
-            })
+            bottomNavigation.addView(button, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(4); marginEnd = dp(4) })
         }
-        content.addView(nav)
     }
 
     private fun renderCalendar() {
@@ -574,7 +524,7 @@ class MainActivity : Activity() {
         } else {
             alarmPreferences.getEndAlarmTime(selectedDate, defaultTime)
         }
-        val title = if (isStart) "Atur Jam Mulai" else "Atur Jam Pulang"
+        val title = if (isStart) tr("Atur Jam Mulai", "Set Start Time") else tr("Atur Jam Selesai", "Set End Time")
         TimePickerDialog(this, { _, hour, minute ->
             val selectedTime = java.time.LocalTime.of(hour, minute)
             if (isStart) alarmPreferences.setStartAlarmTime(selectedDate, selectedTime)
@@ -883,7 +833,8 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             background = rounded(color, 12)
-            setPadding(dp(10), dp(8), dp(10), dp(8))
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            minHeight = dp(54)
             isClickable = true
             isFocusable = true
             setOnClickListener { action() }
