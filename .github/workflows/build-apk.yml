@@ -71,12 +71,12 @@ jobs:
       - name: Rename APK with version
         if: success()
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Shift-Alarm-v1.0.1.apk
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Shift-Alarm-v1.1.0.apk
 
       - name: Upload Shift Alarm APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Shift-Alarm-v1.0.1
-          path: app/build/outputs/apk/debug/Shift-Alarm-v1.0.1.apk
+          name: Shift-Alarm-v1.1.0
+          path: app/build/outputs/apk/debug/Shift-Alarm-v1.1.0.apk
           if-no-files-found: error
