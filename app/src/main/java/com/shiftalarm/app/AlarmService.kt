@@ -1,4 +1,3 @@
-
 package com.shiftalarm.app
 
 import android.app.Notification
@@ -33,29 +32,11 @@ class AlarmService : Service() {
         createNotificationChannel()
     }
 
-    override fun onStartCommand(
-        intent: Intent?,
-        flags: Int,
-        startId: Int
-    ): Int {
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val shiftCode = intent?.getStringExtra(AlarmScheduler.EXTRA_SHIFT_CODE) ?: "Shift"
+        val date = intent?.getStringExtra(AlarmScheduler.EXTRA_DATE) ?: ""
 
-        val shiftCode = intent?.getStringExtra(
-            AlarmScheduler.EXTRA_SHIFT_CODE
-        ) ?: "Shift"
-
-        val date = intent?.getStringExtra(
-            AlarmScheduler.EXTRA_DATE
-        ) ?: ""
-
-        val reminder = intent?.getIntExtra(
-            AlarmScheduler.EXTRA_REMINDER, 0
-        ) ?: 0
-
-        val notification = buildNotification(
-            shiftCode,
-            date,
-            reminder
-        )
+        val notification = buildNotification(shiftCode, date)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
@@ -69,7 +50,6 @@ class AlarmService : Service() {
 
         startAlarmSound()
         startVibration()
-
         return START_NOT_STICKY
     }
 
@@ -77,17 +57,14 @@ class AlarmService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Shift Alarm",
+                "Alarm Utama Shift Alarm",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Peringatan jadwal dinas"
+                description = "Alarm utama jadwal dinas"
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                setBypassDnd(true)
             }
-
-            val manager = getSystemService(
-                Context.NOTIFICATION_SERVICE
-            ) as NotificationManager
-
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
         }
     }
@@ -98,104 +75,69 @@ class AlarmService : Service() {
         date: String,
         requestCode: Int
     ): PendingIntent {
-
-        val intent = Intent(
-            this,
-            AlarmActionReceiver::class.java
-        ).apply {
+        val intent = Intent(this, AlarmActionReceiver::class.java).apply {
             this.action = action
-
-            putExtra(
-                AlarmScheduler.EXTRA_SHIFT_CODE,
-                shiftCode
-            )
-
-            putExtra(
-                AlarmScheduler.EXTRA_DATE,
-                date
-            )
+            putExtra(AlarmScheduler.EXTRA_SHIFT_CODE, shiftCode)
+            putExtra(AlarmScheduler.EXTRA_DATE, date)
         }
-
         return PendingIntent.getBroadcast(
             this,
             requestCode,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or
-                PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
 
-    private fun buildNotification(
-        shiftCode: String,
-        date: String,
-        reminder: Int
-    ): Notification {
-
-        val message = if (reminder == 0) {
-            "Saatnya mulai dinas $shiftCode"
-        } else {
-            "Dinas $shiftCode dimulai $reminder menit lagi"
+    private fun buildNotification(shiftCode: String, date: String): Notification {
+        val screenIntent = Intent(this, AlarmScreenActivity::class.java).apply {
+            putExtra(AlarmScheduler.EXTRA_SHIFT_CODE, shiftCode)
+            putExtra(AlarmScheduler.EXTRA_DATE, date)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
-
-        val stopIntent = createActionPendingIntent(
-            AlarmActionReceiver.ACTION_STOP,
-            shiftCode,
-            date,
-            10001
+        val fullScreenPendingIntent = PendingIntent.getActivity(
+            this,
+            10000,
+            screenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val stopIntent = createActionPendingIntent(
+            AlarmActionReceiver.ACTION_STOP, shiftCode, date, 10001
+        )
         val snoozeIntent = createActionPendingIntent(
-            AlarmActionReceiver.ACTION_SNOOZE,
-            shiftCode,
-            date,
-            10002
+            AlarmActionReceiver.ACTION_SNOOZE, shiftCode, date, 10002
         )
 
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("SHIFT ALARM")
-            .setContentText(message)
+            .setContentText("Waktunya dinas $shiftCode")
             .setCategory(Notification.CATEGORY_ALARM)
             .setPriority(Notification.PRIORITY_MAX)
             .setOngoing(true)
             .setAutoCancel(false)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .addAction(
-                android.R.drawable.ic_media_pause,
-                "STOP",
-                stopIntent
-            )
-            .addAction(
-                android.R.drawable.ic_media_play,
-                "SNOOZE 5 MENIT",
-                snoozeIntent
-            )
+            .setFullScreenIntent(fullScreenPendingIntent, true)
+            .setContentIntent(fullScreenPendingIntent)
+            .addAction(android.R.drawable.ic_media_pause, "STOP", stopIntent)
+            .addAction(android.R.drawable.ic_media_play, "SNOOZE 5 MENIT", snoozeIntent)
             .build()
     }
 
     private fun startAlarmSound() {
         stopAlarmSound()
-
         try {
-            val uri = RingtoneManager.getDefaultUri(
-                RingtoneManager.TYPE_ALARM
-            ) ?: RingtoneManager.getDefaultUri(
-                RingtoneManager.TYPE_NOTIFICATION
-            )
-
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             if (uri != null) {
                 mediaPlayer = MediaPlayer().apply {
                     setDataSource(this@AlarmService, uri)
-
                     setAudioAttributes(
                         AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_ALARM)
-                            .setContentType(
-                                AudioAttributes.CONTENT_TYPE_SONIFICATION
-                            )
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                             .build()
                     )
-
                     isLooping = true
                     prepare()
                     start()
@@ -208,10 +150,7 @@ class AlarmService : Service() {
 
     private fun startVibration() {
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val manager = getSystemService(
-                Context.VIBRATOR_MANAGER_SERVICE
-            ) as VibratorManager
-
+            val manager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
             manager.defaultVibrator
         } else {
             @Suppress("DEPRECATION")
@@ -220,11 +159,8 @@ class AlarmService : Service() {
 
         if (vibrator?.hasVibrator() == true) {
             val pattern = longArrayOf(0, 800, 500, 800, 500)
-
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator?.vibrate(
-                    VibrationEffect.createWaveform(pattern, 0)
-                )
+                vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
             } else {
                 @Suppress("DEPRECATION")
                 vibrator?.vibrate(pattern, 0)
@@ -240,7 +176,6 @@ class AlarmService : Service() {
             } catch (_: Exception) {
             }
         }
-
         mediaPlayer = null
     }
 
