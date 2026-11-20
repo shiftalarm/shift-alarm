@@ -24,7 +24,10 @@ class AlarmScheduler(context: Context) {
         const val EXTRA_REMINDER = "reminder_minutes"
 
         const val ATTENDANCE_REMINDER_MINUTES = 30
+        // Scheduling uses only 30 and 0. Include old 60/15 values when cancelling
+        // so alarms created by earlier app versions cannot ring unexpectedly.
         val REMINDER_MINUTES = listOf(ATTENDANCE_REMINDER_MINUTES, 0)
+        private val LEGACY_REMINDER_MINUTES = listOf(60, 30, 15, 0)
 
         private const val SNOOZE_REQUEST_CODE = 99001
     }
@@ -116,7 +119,7 @@ class AlarmScheduler(context: Context) {
     }
 
     fun cancelShift(date: LocalDate, shiftCode: String) {
-        for (minutes in REMINDER_MINUTES) {
+        for (minutes in LEGACY_REMINDER_MINUTES) {
             val requestCode = "$date-$shiftCode-$minutes".hashCode()
             val intent = Intent(appContext, AlarmReceiver::class.java).apply {
                 action = ACTION_ALARM
