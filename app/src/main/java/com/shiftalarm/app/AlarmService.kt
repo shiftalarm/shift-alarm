@@ -53,7 +53,8 @@ class AlarmService : Service() {
         val shiftCode = intent?.getStringExtra(AlarmScheduler.EXTRA_SHIFT_CODE) ?: "Shift"
         val date = intent?.getStringExtra(AlarmScheduler.EXTRA_DATE) ?: ""
         val alarmTime = intent?.getStringExtra(AlarmScheduler.EXTRA_ALARM_TIME)
-        val notification = buildNotification(shiftCode, date, alarmTime)
+        val alarmType = intent?.getStringExtra(AlarmScheduler.EXTRA_ALARM_TYPE) ?: AlarmScheduler.ALARM_TYPE_START
+        val notification = buildNotification(shiftCode, date, alarmTime, alarmType)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         } else startForeground(NOTIFICATION_ID, notification)
@@ -82,11 +83,12 @@ class AlarmService : Service() {
         return PendingIntent.getBroadcast(this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    private fun buildNotification(shiftCode: String, date: String, alarmTime: String?): Notification {
+    private fun buildNotification(shiftCode: String, date: String, alarmTime: String?, alarmType: String): Notification {
         val screenIntent = Intent(this, AlarmScreenActivity::class.java).apply {
             putExtra(AlarmScheduler.EXTRA_SHIFT_CODE, shiftCode)
             putExtra(AlarmScheduler.EXTRA_DATE, date)
             putExtra(AlarmScheduler.EXTRA_ALARM_TIME, alarmTime)
+            putExtra(AlarmScheduler.EXTRA_ALARM_TYPE, alarmType)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         val fullScreen = PendingIntent.getActivity(this, 10000, screenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -95,7 +97,7 @@ class AlarmService : Service() {
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("SHIFT ALARM")
-            .setContentText("Waktunya dinas $shiftCode")
+            .setContentText(if (alarmType == AlarmScheduler.ALARM_TYPE_END) "Waktunya selesai dinas $shiftCode" else "Waktunya mulai dinas $shiftCode")
             .setCategory(Notification.CATEGORY_ALARM)
             .setPriority(Notification.PRIORITY_MAX)
             .setOngoing(true).setAutoCancel(false).setVisibility(Notification.VISIBILITY_PUBLIC)
