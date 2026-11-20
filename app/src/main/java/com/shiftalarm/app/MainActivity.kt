@@ -39,7 +39,7 @@ class MainActivity : Activity() {
     private lateinit var startTimeLabel: TextView
     private lateinit var endTimeLabel: TextView
     private lateinit var shiftSpinner: Spinner
-    private lateinit var statusText: TextView
+    private lateinit var statusText: TextView\n    private lateinit var startTimeValue: TextView\n    private lateinit var endTimeValue: TextView
     private var previewRingtone: Ringtone? = null
     private val previewHandler = Handler(Looper.getMainLooper())
     private val stopPreview = Runnable { stopTonePreview() }
@@ -343,7 +343,9 @@ class MainActivity : Activity() {
             isClickable = true; isFocusable = true; setOnClickListener { action() }
         }
         box.addView(label(title, 10f, secondaryText, true))
-        box.addView(label(time, 23f, accent, true))
+        val valueLabel = label(time, 23f, accent, true)
+        if (title == tr("JAM MULAI", "START TIME")) startTimeValue = valueLabel else endTimeValue = valueLabel
+        box.addView(valueLabel)
         box.addView(label(tr("Ketuk untuk ubah", "Tap to edit"), 9f, secondaryText, false))
         return box
     }
