@@ -44,6 +44,7 @@ class MainActivity : Activity() {
     private var darkMode = true
     private var accentIndex = 0
     private var wallpaperIndex = 0
+    private var currentTab = "home"
 
     private val accents = listOf(
         Color.rgb(36, 190, 220),   // Ocean
@@ -109,6 +110,16 @@ class MainActivity : Activity() {
     private fun renderDashboard() {
         content.removeAllViews()
         content.setBackgroundColor(backgroundColor)
+        if (currentTab == "summary") {
+            renderSummaryScreen()
+            addBottomNavigation()
+            return
+        }
+        if (currentTab == "profile") {
+            renderProfileScreen()
+            addBottomNavigation()
+            return
+        }
 
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -260,6 +271,109 @@ class MainActivity : Activity() {
         val footer = label("SHIFT ALARM  •  © 2026 mahendradba", 10f, secondaryText, true)
         footer.gravity = Gravity.CENTER
         content.addView(footer)
+        addBottomNavigation()
+    }
+
+    private fun renderSummaryScreen() {
+        val header = card()
+        header.addView(label("RINGKASAN JADWAL", 12f, accent, true))
+        addSpaceTo(header, 8)
+        header.addView(label("Rekap seluruh jadwal dinas yang tersimpan.", 22f, primaryText, true))
+        content.addView(header)
+        addSpace(14)
+
+        val schedules = store.getAllShifts().toSortedMap()
+        val summaryCard = card()
+        summaryCard.addView(label("TOTAL JADWAL", 11f, accent, true))
+        addSpaceTo(summaryCard, 6)
+        summaryCard.addView(label(schedules.size.toString() + " tanggal tersimpan", 20f, primaryText, true))
+        addSpaceTo(summaryCard, 12)
+        if (schedules.isEmpty()) {
+            summaryCard.addView(label("Belum ada jadwal. Tambahkan jadwal melalui halaman Home.", 13f, secondaryText, false))
+        } else {
+            schedules.forEach { (date, code) ->
+                val shift = ShiftDefinitions.find(code)
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(0, dp(9), 0, dp(9))
+                }
+                val dateText = label(date.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale("id", "ID"))), 13f, primaryText, true)
+                row.addView(dateText, LinearLayout.LayoutParams(0, -2, 1f))
+                row.addView(label(code, 13f, accent, true))
+                row.addView(label("   " + (shift?.startTime ?: "--:--") + "–" + (shift?.endTime ?: "--:--"), 11f, secondaryText, false))
+                summaryCard.addView(row)
+                val line = View(this).apply { setBackgroundColor(if (darkMode) Color.rgb(43, 57, 76) else Color.rgb(229, 234, 241)) }
+                summaryCard.addView(line, LinearLayout.LayoutParams(-1, dp(1)))
+            }
+        }
+        content.addView(summaryCard)
+        addSpace(14)
+        content.addView(actionButton("KEMBALI KE HOME", accent) {
+            currentTab = "home"
+            renderDashboard()
+        })
+    }
+
+    private fun renderProfileScreen() {
+        val profile = card()
+        profile.addView(label("PROFILE & PENGATURAN", 12f, accent, true))
+        addSpaceTo(profile, 8)
+        profile.addView(label("Shift Alarm", 24f, primaryText, true))
+        addSpaceTo(profile, 4)
+        profile.addView(label("Smart Shift Schedule & Alarm", 13f, secondaryText, false))
+        addSpaceTo(profile, 16)
+        profile.addView(label("Tampilan", 11f, accent, true))
+        addSpaceTo(profile, 8)
+        profile.addView(actionButton(if (darkMode) "GUNAKAN LIGHT MODE" else "GUNAKAN DARK MODE", accent) {
+            darkMode = !darkMode
+            saveAppearance()
+            renderDashboard()
+        })
+        addSpaceTo(profile, 8)
+        profile.addView(actionButton("PILIH WARNA AKSEN", accent) { openThemeSettings() })
+        addSpaceTo(profile, 8)
+        profile.addView(actionButton("PILIH WALLPAPER", Color.rgb(91, 105, 132)) { openWallpaperSettings() })
+        addSpaceTo(profile, 16)
+        profile.addView(label("Alarm & Notifikasi", 11f, accent, true))
+        addSpaceTo(profile, 8)
+        profile.addView(actionButton("PENGATURAN SUARA ALARM", Color.rgb(61, 91, 125)) { openSoundSettings() })
+        addSpaceTo(profile, 8)
+        profile.addView(actionButton("PENGINGAT ABSEN", Color.rgb(61, 91, 125)) { openAttendanceReminderSettings() })
+        addSpaceTo(profile, 8)
+        profile.addView(actionButton("IZIN ALARM TEPAT", Color.rgb(61, 91, 125)) { openExactAlarmSettings() })
+        content.addView(profile)
+    }
+
+    private fun addBottomNavigation() {
+        addSpace(16)
+        val nav = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            background = rounded(cardColor, 18)
+        }
+        val tabs = listOf("home" to "HOME", "summary" to "SUMMARY", "profile" to "PROFILE")
+        tabs.forEach { (key, title) ->
+            val selected = currentTab == key
+            val button = TextView(this).apply {
+                text = title
+                textSize = 11f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                setTextColor(if (selected) Color.WHITE else secondaryText)
+                background = rounded(if (selected) accent else cardColor, 12)
+                setPadding(dp(10), dp(13), dp(10), dp(13))
+                setOnClickListener {
+                    currentTab = key
+                    renderDashboard()
+                }
+            }
+            nav.addView(button, LinearLayout.LayoutParams(0, dp(44), 1f).apply {
+                marginStart = dp(4); marginEnd = dp(4)
+            })
+        }
+        content.addView(nav)
     }
 
     private fun renderCalendar() {
