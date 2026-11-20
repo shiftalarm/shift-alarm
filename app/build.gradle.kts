@@ -4,6 +4,10 @@ plugins {
 }
 
 android {
+    buildFeatures {
+        buildConfig = true
+    }
+
     namespace = "com.shiftalarm.app"
     compileSdk = 35
 
