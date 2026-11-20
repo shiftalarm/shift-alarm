@@ -20,11 +20,13 @@ class AlarmScreenActivity : Activity() {
 
     private var shiftCode: String = "Shift"
     private var date: LocalDate = LocalDate.now()
+    private var configuredAlarmTime: LocalTime? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         shiftCode = intent.getStringExtra(AlarmScheduler.EXTRA_SHIFT_CODE) ?: "Shift"
+        configuredAlarmTime = intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_TIME)?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
         date = try {
             LocalDate.parse(intent.getStringExtra(AlarmScheduler.EXTRA_DATE) ?: "")
         } catch (_: Exception) {
@@ -87,7 +89,7 @@ class AlarmScreenActivity : Activity() {
         }
         root.addView(status, matchWrap())
 
-        val time = ShiftDefinitions.find(shiftCode)?.startTime ?: LocalTime.now()
+        val time = configuredAlarmTime ?: ShiftDefinitions.find(shiftCode)?.startTime ?: LocalTime.now()
         val clock = TextView(this).apply {
             text = time.format(DateTimeFormatter.ofPattern("HH:mm"))
             textSize = 64f
