@@ -198,7 +198,7 @@ class MainActivity : Activity() {
         val nextCard = card()
         nextCard.addView(label(tr("DINAS BERIKUTNYA", "UPCOMING SHIFT"), 11f, accent, true))
         addSpaceTo(nextCard, 8)
-        upcomingText = label("", 18f, primaryText, true)
+        upcomingText = label("", 14.5f, primaryText, true)
         nextCard.addView(upcomingText)
         addSpaceTo(nextCard, 5)
         nextCard.addView(label(tr("Pengingat persiapan otomatis 30 menit sebelum alarm utama.", "Automatic preparation reminder 30 minutes before the main alarm."), 12f, secondaryText, false))
@@ -303,7 +303,7 @@ class MainActivity : Activity() {
         val summaryCard = card()
         summaryCard.addView(label(tr("TOTAL JADWAL", "TOTAL SCHEDULES"), 11f, accent, true))
         addSpaceTo(summaryCard, 6)
-        summaryCard.addView(label(schedules.size.toString() + if (language == "en") " saved dates" else " tanggal tersimpan", 20f, primaryText, true))
+        summaryCard.addView(label(schedules.size.toString() + if (language == "en") " saved dates" else " tanggal tersimpan", 15f, primaryText, true))
         addSpaceTo(summaryCard, 12)
         if (schedules.isEmpty()) {
             summaryCard.addView(label(tr("Belum ada jadwal. Tambahkan jadwal melalui halaman Home.", "No schedules yet. Add one from the Home page."), 13f, secondaryText, false))
@@ -377,12 +377,12 @@ class MainActivity : Activity() {
             private fun styled(position: Int, dropdown: Boolean): TextView =
                 TextView(this@MainActivity).apply {
                     text = languageOptions[position]
-                    textSize = 14f
+                    textSize = 12f
                     typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                     setTextColor(primaryText)
                     gravity = Gravity.CENTER_VERTICAL
-                    setPadding(dp(12), dp(10), dp(12), dp(10))
-                    minHeight = dp(46)
+                    setPadding(dp(9), dp(7), dp(9), dp(7))
+                    minHeight = dp(38)
                     if (dropdown) {
                         background = rounded(
                             if (position == languageSpinner.selectedItemPosition) {
@@ -410,7 +410,7 @@ class MainActivity : Activity() {
                 }
             }
         }
-        languageRow.addView(languageSpinner, LinearLayout.LayoutParams(dp(184), dp(46)))
+        languageRow.addView(languageSpinner, LinearLayout.LayoutParams(dp(164), dp(38)))
         languageCard.addView(languageRow)
         content.addView(languageCard)
         addSpace(8)
@@ -426,7 +426,7 @@ class MainActivity : Activity() {
         alarmCard.addView(alarmGrid)
         content.addView(alarmCard)
 
-        val version = label("VERSI APK  •  Shift Alarm v1.2.0", 9f, secondaryText, true).apply { gravity = Gravity.CENTER }
+        val version = label("VERSI APK  •  Shift Alarm v${BuildConfig.VERSION_NAME}", 9f, secondaryText, true).apply { gravity = Gravity.CENTER }
         content.addView(version, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(7) })
         content.addView(label("© 2026 mahendradba", 9f, secondaryText, false).apply { gravity = Gravity.CENTER },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
@@ -445,11 +445,11 @@ class MainActivity : Activity() {
                     }.start()
             }
         }
-        tile.addView(label(symbol, 21f, tileColor, true).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(dp(27), dp(32)))
-        tile.addView(label(title, 9.5f, primaryText, true).apply { gravity = Gravity.CENTER_VERTICAL },
+        tile.addView(label(symbol, 22f, tileColor, true).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(dp(27), dp(32)))
+        tile.addView(label(title, 10.5f, primaryText, true).apply { gravity = Gravity.CENTER_VERTICAL },
             LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(6) })
         grid.addView(tile, GridLayout.LayoutParams().apply {
-            width = 0; height = dp(48); columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+            width = 0; height = dp(52); columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
             setMargins(dp(2), dp(2), dp(2), dp(2))
         })
     }
