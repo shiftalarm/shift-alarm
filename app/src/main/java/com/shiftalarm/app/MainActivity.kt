@@ -398,7 +398,7 @@ class MainActivity : Activity() {
         }
         languageSpinner.setSelection(if (language == "en") 1 else 0)
         languageSpinner.backgroundTintList = android.content.res.ColorStateList.valueOf(accent)
-        languageSpinner.popupBackground = rounded(cardColor, 12)
+        languageSpinner.setPopupBackgroundDrawable(rounded(cardColor, 12))
         languageSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
