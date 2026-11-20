@@ -30,11 +30,13 @@ class AlarmActionReceiver : BroadcastReceiver() {
             } ?: "00:00"
         when (intent.action) {
             ACTION_STOP -> {
+                AlarmPreferences(context).clearActiveAlarm()
                 scheduler.cancelSnooze(shiftCode, date, AlarmScheduler.ALARM_TYPE_START)
                 scheduler.cancelSnooze(shiftCode, date, AlarmScheduler.ALARM_TYPE_END)
                 context.stopService(Intent(context, AlarmService::class.java))
             }
             ACTION_SNOOZE -> {
+                AlarmPreferences(context).clearActiveAlarm()
                 scheduler.cancelSnooze(shiftCode, date, alarmType)
                 context.stopService(Intent(context, AlarmService::class.java))
                 try {
