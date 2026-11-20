@@ -53,7 +53,11 @@ class AlarmPreferences(context: Context) {
     fun isAttendanceReminderEnabled(): Boolean = prefs.getBoolean(KEY_ATTENDANCE_REMINDER_ENABLED, true)
     fun setAttendanceReminderEnabled(enabled: Boolean) { prefs.edit().putBoolean(KEY_ATTENDANCE_REMINDER_ENABLED, enabled).apply() }
 
-    fun getReminderText(): String = prefs.getString(KEY_REMINDER_TEXT, DEFAULT_REMINDER_TEXT) ?: DEFAULT_REMINDER_TEXT
+    fun getReminderText(language: String = "id"): String {
+        val saved = prefs.getString(KEY_REMINDER_TEXT, null)
+        if (saved != null) return saved
+        return if (language == "en") DEFAULT_REMINDER_TEXT_EN else DEFAULT_REMINDER_TEXT
+    }
     fun setReminderText(value: String) { prefs.edit().putString(KEY_REMINDER_TEXT, value.trim().ifBlank { DEFAULT_REMINDER_TEXT }).apply() }
     fun resetReminderText() { prefs.edit().remove(KEY_REMINDER_TEXT).apply() }
 
@@ -64,5 +68,6 @@ class AlarmPreferences(context: Context) {
         const val KEY_ATTENDANCE_REMINDER_ENABLED = "attendance_reminder_enabled"
         const val KEY_REMINDER_TEXT = "attendance_reminder_text"
         const val DEFAULT_REMINDER_TEXT = "Persiapan Dinas {shift} — 30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap."
+        const val DEFAULT_REMINDER_TEXT_EN = "Shift {shift} preparation — your work shift starts in 30 minutes. Please get ready."
     }
 }
