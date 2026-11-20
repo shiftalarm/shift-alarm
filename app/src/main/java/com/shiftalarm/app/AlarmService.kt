@@ -93,7 +93,10 @@ class AlarmService : Service() {
         val fullScreen = PendingIntent.getActivity(this, 10000, screenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val stop = createActionPendingIntent(AlarmActionReceiver.ACTION_STOP, shiftCode, date, 10001)
         val snooze = createActionPendingIntent(AlarmActionReceiver.ACTION_SNOOZE, shiftCode, date, 10002)
-        val label = if (kind == AlarmScheduler.KIND_END) "Waktunya pulang kerja $shiftCode" else "Waktunya mulai dinas $shiftCode"
+        val language = getSharedPreferences("shift_alarm_appearance", Context.MODE_PRIVATE).getString("language", "id") ?: "id"
+        val label = if (language == "en") {
+            if (kind == AlarmScheduler.KIND_END) "Time to finish work $shiftCode" else "Time to start work $shiftCode"
+        } else if (kind == AlarmScheduler.KIND_END) "Waktunya pulang kerja $shiftCode" else "Waktunya mulai dinas $shiftCode"
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("SHIFT ALARM")
