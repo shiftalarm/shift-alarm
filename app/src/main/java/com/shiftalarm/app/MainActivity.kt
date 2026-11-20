@@ -43,6 +43,7 @@ class MainActivity : Activity() {
     private var displayedMonth = YearMonth.now()
     private var darkMode = true
     private var accentIndex = 0
+    private var wallpaperIndex = 0
 
     private val accents = listOf(
         Color.rgb(36, 190, 220),   // Ocean
@@ -57,8 +58,18 @@ class MainActivity : Activity() {
         Color.rgb(174, 146, 111)  // Sand
     )
 
+    private val wallpaperColors = listOf(
+        Color.rgb(9, 17, 31), Color.rgb(15, 28, 48), Color.rgb(25, 31, 53),
+        Color.rgb(28, 38, 48), Color.rgb(37, 29, 45), Color.rgb(241, 245, 250),
+        Color.rgb(233, 241, 248), Color.rgb(245, 240, 231), Color.rgb(238, 243, 237),
+        Color.rgb(246, 237, 240)
+    )
+    private val wallpaperNames = listOf(
+        "Midnight", "Deep Ocean", "Indigo Night", "Forest Night", "Plum Night",
+        "Cloud", "Ice", "Warm Sand", "Sage Mist", "Soft Rose"
+    )
     private val backgroundColor: Int
-        get() = if (darkMode) Color.rgb(9, 17, 31) else Color.rgb(241, 245, 250)
+        get() = wallpaperColors[wallpaperIndex.coerceIn(0, wallpaperColors.lastIndex)]
     private val cardColor: Int
         get() = if (darkMode) Color.rgb(20, 32, 51) else Color.WHITE
     private val primaryText: Int
@@ -76,6 +87,7 @@ class MainActivity : Activity() {
         val prefs = getSharedPreferences("shift_alarm_appearance", MODE_PRIVATE)
         darkMode = prefs.getBoolean("dark_mode", true)
         accentIndex = prefs.getInt("accent_index", 0).coerceIn(accents.indices)
+        wallpaperIndex = prefs.getInt("wallpaper_index", if (darkMode) 0 else 5).coerceIn(wallpaperColors.indices)
         buildDashboard()
         requestNotificationPermission()
     }
@@ -132,6 +144,8 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(0, dp(42), 1f))
         hero.addView(heroActions)
         addSpaceTo(hero, 10)
+        hero.addView(actionButton("PILIH WALLPAPER", Color.rgb(91, 105, 132)) { openWallpaperSettings() })
+        addSpaceTo(hero, 8)
         hero.addView(actionButton("PENGATURAN SUARA ALARM", Color.rgb(61, 91, 125)) { openSoundSettings() })
         addSpaceTo(hero, 8)
         hero.addView(actionButton("PENGATURAN PENGINGAT ABSEN", Color.rgb(61, 91, 125)) { openAttendanceReminderSettings() })
@@ -433,6 +447,21 @@ class MainActivity : Activity() {
             .show()
     }
 
+    private fun openWallpaperSettings() {
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Pilih Wallpaper")
+            .setSingleChoiceItems(wallpaperNames.toTypedArray(), wallpaperIndex) { alert, index ->
+                wallpaperIndex = index
+                saveAppearance()
+                alert.dismiss()
+                renderDashboard()
+                Toast.makeText(this, "Wallpaper " + wallpaperNames[index] + " diterapkan", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Batal", null)
+            .create()
+        dialog.show()
+    }
+
     private fun openSoundSettings() {
         val gradual = alarmPreferences.isGradualVolume()
         val duration = alarmPreferences.getRampDurationSeconds()
@@ -628,6 +657,7 @@ class MainActivity : Activity() {
         getSharedPreferences("shift_alarm_appearance", MODE_PRIVATE).edit()
             .putBoolean("dark_mode", darkMode)
             .putInt("accent_index", accentIndex)
+            .putInt("wallpaper_index", wallpaperIndex)
             .apply()
     }
 
