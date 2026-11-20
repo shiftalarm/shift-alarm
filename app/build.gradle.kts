@@ -4,15 +4,21 @@ plugins {
 }
 
 android {
+    buildFeatures {
+        buildConfig = true
+    }
+
     namespace = "com.shiftalarm.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.shiftalarm.app"
+        // Keep the application ID identical to the installed release (run #42)
+        // so Android upgrades the existing app instead of creating a different package.
+        applicationId = "com.shiftalarm.app2"
         minSdk = 30
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 9
+        versionName = "1.2.2"
     }
 
     signingConfigs {

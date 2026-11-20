@@ -15,6 +15,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -54,13 +55,30 @@ class AlarmService : Service() {
         val date = intent?.getStringExtra(AlarmScheduler.EXTRA_DATE) ?: ""
         val alarmTime = intent?.getStringExtra(AlarmScheduler.EXTRA_ALARM_TIME)
         val alarmType = intent?.getStringExtra(AlarmScheduler.EXTRA_ALARM_TYPE) ?: AlarmScheduler.ALARM_TYPE_START
+        if (date.isNotBlank()) {
+            AlarmPreferences(this).setActiveAlarm(shiftCode, date, alarmTime ?: "00:00", alarmType)
+        }
         val notification = buildNotification(shiftCode, date, alarmTime, alarmType)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         } else startForeground(NOTIFICATION_ID, notification)
         startAlarmSound()
         startVibration()
-        return START_NOT_STICKY
+        openAlarmScreenWhenDeviceInteractive(shiftCode, date, alarmTime, alarmType)
+        return START_REDELIVER_INTENT
+    }
+
+    private fun openAlarmScreenWhenDeviceInteractive(shiftCode: String, date: String, alarmTime: String?, alarmType: String) {
+        val power = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (!power.isInteractive) return
+        val screenIntent = Intent(this, AlarmScreenActivity::class.java).apply {
+            putExtra(AlarmScheduler.EXTRA_SHIFT_CODE, shiftCode)
+            putExtra(AlarmScheduler.EXTRA_DATE, date)
+            putExtra(AlarmScheduler.EXTRA_ALARM_TIME, alarmTime)
+            putExtra(AlarmScheduler.EXTRA_ALARM_TYPE, alarmType)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        try { startActivity(screenIntent) } catch (error: Exception) { error.printStackTrace() }
     }
 
     private fun createNotificationChannel() {

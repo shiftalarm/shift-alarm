@@ -16,12 +16,12 @@ object ShiftDefinitions {
         ShiftDefinition(
             code = "SF",
             startTime = LocalTime.of(12, 0),
-            endTime = LocalTime.of(14, 30)
+            endTime = LocalTime.of(20, 30)
         ),
         ShiftDefinition(
             code = "SO",
             startTime = LocalTime.of(12, 0),
-            endTime = LocalTime.of(14, 30)
+            endTime = LocalTime.of(20, 30)
         ),
         ShiftDefinition(
             code = "PF",

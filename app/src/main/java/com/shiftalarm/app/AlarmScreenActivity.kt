@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.WindowManager
+import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -53,7 +54,15 @@ class AlarmScreenActivity : Activity() {
         )
         window.statusBarColor = Color.rgb(8, 17, 36)
         window.navigationBarColor = Color.rgb(8, 17, 36)
-        window.decorView.systemUiVisibility = 0
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = (
+            View.SYSTEM_UI_FLAG_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            )
 
         createAlarmInterface()
     }
@@ -82,7 +91,7 @@ class AlarmScreenActivity : Activity() {
         root.addView(brand, matchWrap())
 
         val status = TextView(this).apply {
-            text = if (alarmType == AlarmScheduler.ALARM_TYPE_END) "ALARM PULANG AKTIF" else "ALARM MULAI DINAS AKTIF"
+            text = if (alarmType == AlarmScheduler.ALARM_TYPE_END) "ALARM SELESAI AKTIF" else "ALARM MULAI DINAS AKTIF"
             textSize = 12f
             letterSpacing = 0.16f
             setTextColor(muted)
@@ -108,7 +117,7 @@ class AlarmScreenActivity : Activity() {
         root.addView(clock, matchWrap())
 
         val shiftTitle = TextView(this).apply {
-            text = if (alarmType == AlarmScheduler.ALARM_TYPE_END) "Waktunya Pulang Dinas $shiftCode" else "Waktunya Mulai Dinas $shiftCode"
+            text = if (alarmType == AlarmScheduler.ALARM_TYPE_END) "Waktunya Selesai Dinas $shiftCode" else "Waktunya Mulai Dinas $shiftCode"
             textSize = 25f
             setTextColor(white)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
@@ -135,8 +144,8 @@ class AlarmScreenActivity : Activity() {
         root.addView(ringing, matchWrap())
 
         val snooze = Button(this).apply {
-            text = "SNOOZE\nUlangi 5 menit"
-            textSize = 17f
+            text = "SNOOZE 5 MENIT"
+            textSize = 18f
             isAllCaps = false
             setTextColor(navy)
             setBackgroundTintList(android.content.res.ColorStateList.valueOf(cyan))
@@ -147,7 +156,7 @@ class AlarmScreenActivity : Activity() {
         ).apply { bottomMargin = dp(14) })
 
         val stop = Button(this).apply {
-            text = "STOP\nMatikan alarm"
+            text = "STOP"
             textSize = 17f
             isAllCaps = false
             setTextColor(white)

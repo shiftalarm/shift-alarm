@@ -3,6 +3,8 @@ package com.shiftalarm.app
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -11,7 +13,6 @@ import android.os.Build
 class AlarmReceiver : BroadcastReceiver() {
 
     companion object {
-        const val ATTENDANCE_CHANNEL_ID = "shift_attendance_reminder_v1"
         const val ATTENDANCE_NOTIFICATION_ID = 2030
     }
 
@@ -25,7 +26,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
         if (!isSnooze && alarmType == AlarmScheduler.ALARM_TYPE_START &&
             reminderMinutes == AlarmScheduler.ATTENDANCE_REMINDER_MINUTES) {
-            showAttendanceReminder(context, shiftCode)
+            startAttendanceReminder(context, shiftCode, date)
             return
         }
 
@@ -46,39 +47,53 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun showAttendanceReminder(context: Context, shiftCode: String) {
+    private fun startAttendanceReminder(context: Context, shiftCode: String, date: String) {
+        val serviceIntent = Intent(context, AttendanceReminderService::class.java).apply {
+            putExtra(AlarmScheduler.EXTRA_SHIFT_CODE, shiftCode)
+            putExtra(AlarmScheduler.EXTRA_DATE, date)
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(serviceIntent)
+            else context.startService(serviceIntent)
+        } catch (error: Exception) {
+            error.printStackTrace()
+            showAttendanceReminderFallback(context, shiftCode, date)
+        }
+    }
+
+    private fun showAttendanceReminderFallback(context: Context, shiftCode: String, date: String) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val reminderText = AlarmPreferences(context).getAttendanceReminderText()
+        val prefs = AlarmPreferences(context)
+        val reminderText = prefs.getAttendanceReminderText()
+        val soundUri = prefs.getAttendanceRingtoneUri() ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val channelId = "shift_attendance_fallback_v4_" + (soundUri?.toString()?.hashCode()?.toUInt()?.toString(16) ?: "default")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                ATTENDANCE_CHANNEL_ID,
-                "Pengingat Absen",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
+            val channel = NotificationChannel(channelId, "Pengingat Absen", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Pengingat persiapan dinas 30 menit sebelum alarm utama"
                 setShowBadge(false)
+                enableVibration(true)
+                setSound(soundUri, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())
             }
             manager.createNotificationChannel(channel)
         }
 
         val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(context, ATTENDANCE_CHANNEL_ID)
+            Notification.Builder(context, channelId)
         } else {
             @Suppress("DEPRECATION")
-            Notification.Builder(context).setPriority(Notification.PRIORITY_DEFAULT)
+            Notification.Builder(context).setPriority(Notification.PRIORITY_HIGH).setSound(soundUri)
         }.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Persiapan Dinas $shiftCode")
             .setContentText(reminderText)
             .setStyle(Notification.BigTextStyle().bigText(reminderText))
             .setCategory(Notification.CATEGORY_REMINDER)
-            .setAutoCancel(true)
+            .setAutoCancel(false)
             .setOngoing(false)
-            .setTimeoutAfter(10_000L)
             .build()
 
         try {
-            manager.notify(ATTENDANCE_NOTIFICATION_ID, notification)
+            manager.notify((date + "-" + shiftCode).hashCode(), notification)
         } catch (_: SecurityException) {
             // Izin notifikasi boleh dimatikan; alarm utama tetap dijadwalkan terpisah.
         }
