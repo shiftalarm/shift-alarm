@@ -36,6 +36,12 @@ class AlarmPreferences(context: Context) {
 
     fun getRampDurationSeconds(): Int = prefs.getInt(KEY_RAMP_DURATION, 30).coerceIn(10, 120)
 
+    fun isAttendanceReminderEnabled(): Boolean = prefs.getBoolean(KEY_ATTENDANCE_REMINDER_ENABLED, true)
+
+    fun setAttendanceReminderEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ATTENDANCE_REMINDER_ENABLED, enabled).apply()
+    }
+
     fun setRampDurationSeconds(seconds: Int) {
         prefs.edit().putInt(KEY_RAMP_DURATION, seconds.coerceIn(10, 120)).apply()
     }
@@ -44,5 +50,6 @@ class AlarmPreferences(context: Context) {
         const val KEY_RINGTONE_URI = "alarm_ringtone_uri"
         const val KEY_GRADUAL_VOLUME = "gradual_volume"
         const val KEY_RAMP_DURATION = "ramp_duration_seconds"
+        const val KEY_ATTENDANCE_REMINDER_ENABLED = "attendance_reminder_enabled"
     }
 }
