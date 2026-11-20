@@ -31,6 +31,9 @@ class AlarmScheduler(context: Context) {
 
     fun scheduleShift(date: LocalDate, shiftCode: String) {
         val shift = ShiftDefinitions.find(shiftCode) ?: throw IllegalArgumentException("Kode shift tidak dikenal")
+        // Clear any previously scheduled main/reminder alarms before rebuilding
+        // this date. This also removes stale alarms if the new time has passed.
+        cancelShift(date, shift.code)
         val alarmTime = AlarmPreferences(appContext).getAlarmTime(date, shift.startTime)
         val start = LocalDateTime.of(date, alarmTime)
         val now = LocalDateTime.now()
