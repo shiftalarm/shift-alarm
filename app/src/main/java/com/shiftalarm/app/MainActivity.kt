@@ -137,7 +137,7 @@ class MainActivity : Activity() {
         val palette = wallpaperIndex % 5
         wallpaperIndex = if (darkMode) palette else palette + 5
         saveAppearance()
-        renderDashboard()
+        buildDashboard()
     }
 
     private fun buildDashboard() {
@@ -604,7 +604,7 @@ class MainActivity : Activity() {
                 setOnClickListener {
                     accentIndex = index
                     saveAppearance()
-                    renderDashboard()
+                    buildDashboard()
                 }
             }
         }
@@ -624,8 +624,8 @@ class MainActivity : Activity() {
                 darkMode = index < 5
                 saveAppearance()
                 alert.dismiss()
-                renderDashboard()
-                Toast.makeText(this, "Wallpaper " + wallpaperNames[index] + " diterapkan", Toast.LENGTH_SHORT).show()
+                buildDashboard()
+                Toast.makeText(this, tr("Wallpaper " + wallpaperNames[index] + " diterapkan", "Wallpaper " + wallpaperNames[index] + " applied"), Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Batal", null)
             .create()
