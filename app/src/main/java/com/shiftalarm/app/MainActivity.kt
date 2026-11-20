@@ -481,13 +481,13 @@ class MainActivity : Activity() {
     }
 
     private fun openTimePicker(isEnd: Boolean) {
-        val code=store.getShift(selectedDate) ?: ShiftDefinitions.all.getOrNull(shiftSpinner.selectedItemPosition)?.code ?: return
+        val code=ShiftDefinitions.all.getOrNull(shiftSpinner.selectedItemPosition)?.code ?: store.getShift(selectedDate) ?: return
         val shift=ShiftDefinitions.find(code) ?: return
         val current=if(isEnd)prefs.getEndAlarmTime(selectedDate,shift.endTime) else prefs.getAlarmTime(selectedDate,shift.startTime)
         TimePickerDialog(this,{_,hour,minute->
             val time=LocalTime.of(hour,minute)
             if(isEnd)prefs.setEndAlarmTime(selectedDate,time) else prefs.setAlarmTime(selectedDate,time)
-            if(store.getShift(selectedDate)!=null && scheduler.canScheduleExactAlarms()) runCatching{scheduler.scheduleShift(selectedDate,code)}
+            if(store.getShift(selectedDate)==code && scheduler.canScheduleExactAlarms()) runCatching{scheduler.scheduleShift(selectedDate,code)}
             Toast.makeText(this,if(isEnd)tr("Jam pulang disimpan","Finish time saved") else tr("Jam mulai disimpan","Start time saved"),Toast.LENGTH_SHORT).show()
             renderTab(0,true)
         },current.hour,current.minute,true).show()
