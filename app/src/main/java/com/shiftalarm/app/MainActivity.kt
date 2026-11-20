@@ -312,6 +312,14 @@ class MainActivity : Activity() {
         val idx = ShiftDefinitions.all.indexOfFirst { it.code == currentCode }
         if (idx >= 0) shiftSpinner.setSelection(idx)
         editor.addView(shiftSpinner, LinearLayout.LayoutParams(-1, dp(48)))
+        shiftSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedShift = ShiftDefinitions.all.getOrNull(position) ?: return
+                startTimeLabel.text = prefs.getAlarmTime(selectedDate, selectedShift.startTime).toString()
+                endTimeLabel.text = prefs.getEndAlarmTime(selectedDate, selectedShift.endTime).toString()
+            }
+        }
         space(editor, 12)
 
         val currentShift = ShiftDefinitions.find(currentCode ?: ShiftDefinitions.all.first().code) ?: ShiftDefinitions.all.first()
