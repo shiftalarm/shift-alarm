@@ -31,6 +31,7 @@ class AttendanceReminderService : Service() {
         private const val TAG = "ShiftAttendanceReminder"
         private const val CHANNEL_ID = "shift_attendance_audio_v2"
         private const val NOTIFICATION_ID = 2031
+        private const val EXTRA_NOTIFICATION_ID = "attendance_notification_id"
         const val ACTION_DISMISS = "com.shiftalarm.app.ACTION_DISMISS_ATTENDANCE_REMINDER"
     }
 
@@ -40,6 +41,7 @@ class AttendanceReminderService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        currentNotificationId = intent?.getIntExtra(EXTRA_NOTIFICATION_ID, NOTIFICATION_ID) ?: NOTIFICATION_ID
         if (intent?.action == ACTION_DISMISS) {
             stopPlayer()
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -50,8 +52,11 @@ class AttendanceReminderService : Service() {
         stopPlayer()
         fallbackAttempted = false
         notificationDetached = false
-        val shiftCode = intent?.getStringExtra(AlarmScheduler.EXTRA_SHIFT_CODE) ?: "Shift"
-        startAsForeground(buildNotification(shiftCode, ongoing = true))
+        activeShiftCode = intent?.getStringExtra(AlarmScheduler.EXTRA_SHIFT_CODE) ?: "Shift"
+        val reminderDate = intent?.getStringExtra(AlarmScheduler.EXTRA_DATE).orEmpty()
+        currentNotificationId = (reminderDate + "-" + activeShiftCode).hashCode()
+            .and(0x7fffffff).coerceAtLeast(NOTIFICATION_ID)
+        startAsForeground(buildNotification(activeShiftCode, ongoing = true))
         playReminderSound()
         return START_NOT_STICKY
     }
@@ -84,6 +89,7 @@ class AttendanceReminderService : Service() {
         val text = AlarmPreferences(this).getAttendanceReminderText()
         val dismissIntent = Intent(this, AttendanceReminderService::class.java).apply {
             action = ACTION_DISMISS
+            putExtra(EXTRA_NOTIFICATION_ID, currentNotificationId)
         }
         val dismiss = PendingIntent.getService(
             this, currentNotificationId, dismissIntent,
