@@ -1,4 +1,3 @@
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -14,6 +13,22 @@ android {
         targetSdk = 35
         versionCode = 2
         versionName = "1.0.1"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("SHIFTALARM_KEYSTORE_PATH") ?: "release-key.jks")
+            storePassword = System.getenv("SHIFTALARM_KEYSTORE_PASSWORD") ?: ""
+            keyAlias = System.getenv("SHIFTALARM_KEY_ALIAS") ?: ""
+            keyPassword = System.getenv("SHIFTALARM_KEY_PASSWORD") ?: ""
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+        }
     }
 
     compileOptions {
