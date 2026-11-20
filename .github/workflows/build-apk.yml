@@ -56,11 +56,11 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --stacktrace
-          cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/Shift-Alarm-v1.2.1.apk
+          cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/Shift-Alarm-v1.2.2.apk
 
       - name: Verify APK package identity and signature
         run: |
-          APK=app/build/outputs/apk/release/Shift-Alarm-v1.2.1.apk
+          APK=app/build/outputs/apk/release/Shift-Alarm-v1.2.2.apk
           BUILD_TOOLS="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
           AAPT="$ANDROID_HOME/build-tools/$BUILD_TOOLS/aapt"
           APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner"
@@ -70,8 +70,8 @@ jobs:
       - name: Upload signed Shift Alarm APK
         uses: actions/upload-artifact@v4
         with:
-          name: Shift-Alarm-v1.2.1
-          path: app/build/outputs/apk/release/Shift-Alarm-v1.2.1.apk
+          name: Shift-Alarm-v1.2.2
+          path: app/build/outputs/apk/release/Shift-Alarm-v1.2.2.apk
           if-no-files-found: error
 
       - name: Remove temporary signing key
