@@ -19,7 +19,7 @@ class ShiftScheduleStore(context: Context) {
 
         preferences.edit()
             .putString(date.toString(), code.uppercase())
-            .apply()
+            .commit()
     }
 
     fun getShift(date: LocalDate): String? {
@@ -29,7 +29,7 @@ class ShiftScheduleStore(context: Context) {
     fun removeShift(date: LocalDate) {
         preferences.edit()
             .remove(date.toString())
-            .apply()
+            .commit()
     }
 
     fun getAllShifts(): Map<LocalDate, String> {
