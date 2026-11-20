@@ -224,7 +224,7 @@ class MainActivity : Activity() {
         val editor = card()
         editor.addView(label(tr("ATUR JADWAL DINAS", "SET SHIFT SCHEDULE"), 13f, primaryText, true))
         addSpaceTo(editor, 12)
-        selectedDateLabel = label("", 16f, accent, true)
+        selectedDateLabel = label(selectedDate.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", currentLocale())), 16f, accent, true)
         editor.addView(selectedDateLabel)
         addSpaceTo(editor, 10)
         editor.addView(label(tr("Pilih kode shift", "Choose shift code"), 12f, secondaryText, true))
@@ -427,6 +427,9 @@ class MainActivity : Activity() {
 
     private fun renderCalendar() {
         monthLabel.text = displayedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", currentLocale()))
+        if (::selectedDateLabel.isInitialized) {
+            selectedDateLabel.text = selectedDate.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", currentLocale()))
+        }
         calendarGrid.removeAllViews()
         val weekdays = if (language == "en") listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN") else listOf("SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN")
         weekdays.forEach { day ->
@@ -511,34 +514,34 @@ class MainActivity : Activity() {
             store.setShift(selectedDate, shift.code)
             if (scheduler.canScheduleExactAlarms()) {
                 scheduler.scheduleShift(selectedDate, shift.code)
-                Toast.makeText(this, "Jadwal ${shift.code} tersimpan dan alarm dijadwalkan.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, tr("Jadwal ${shift.code} tersimpan dan alarm dijadwalkan.", "Schedule ${shift.code} saved and alarms scheduled."), Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Jadwal tersimpan. Aktifkan izin alarm tepat.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, tr("Jadwal tersimpan. Aktifkan izin alarm tepat.", "Schedule saved. Enable exact alarm permission."), Toast.LENGTH_LONG).show()
             }
             renderDashboard()
         } catch (e: Exception) {
-            statusText.text = "Jadwal tersimpan, tetapi penjadwalan alarm gagal: ${e.message}"
+            statusText.text = tr("Jadwal tersimpan, tetapi penjadwalan alarm gagal: ${e.message}", "Schedule saved, but alarm scheduling failed: ${e.message}")
         }
     }
 
     private fun removeSchedule() {
         val oldCode = store.getShift(selectedDate)
         if (oldCode == null) {
-            Toast.makeText(this, "Tidak ada jadwal pada tanggal ini.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, tr("Tidak ada jadwal pada tanggal ini.", "No schedule on this date."), Toast.LENGTH_SHORT).show()
             return
         }
         scheduler.cancelShift(selectedDate, oldCode)
         store.removeShift(selectedDate)
         alarmPreferences.clearAlarmTime(selectedDate)
-        Toast.makeText(this, "Jadwal berhasil dihapus.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, tr("Jadwal berhasil dihapus.", "Schedule deleted."), Toast.LENGTH_SHORT).show()
         renderDashboard()
     }
 
     private fun refreshStatus() {
         statusText.text = if (scheduler.canScheduleExactAlarms()) {
-            "● Izin alarm tepat aktif"
+            tr("● Izin alarm tepat aktif", "● Exact alarm permission enabled")
         } else {
-            "● Izin alarm tepat belum aktif — tekan tombol IZIN ALARM di atas."
+            tr("● Izin alarm tepat belum aktif — tekan tombol IZIN ALARM di atas.", "● Exact alarm permission is off — open Alarm Permission in Profile.")
         }
     }
 
