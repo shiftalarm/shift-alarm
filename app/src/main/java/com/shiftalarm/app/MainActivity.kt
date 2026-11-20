@@ -5,10 +5,10 @@ import android.app.Activity
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.media.RingtoneManager
-import android.media.Ringtone
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -32,7 +32,6 @@ class MainActivity : Activity() {
     private lateinit var store: ShiftScheduleStore
     private lateinit var scheduler: AlarmScheduler
     private lateinit var alarmPreferences: AlarmPreferences
-    private var previewRingtone: Ringtone? = null
     private lateinit var content: LinearLayout
     private lateinit var bottomNavigation: LinearLayout
     private lateinit var monthLabel: TextView
@@ -48,6 +47,7 @@ class MainActivity : Activity() {
     private var darkMode = true
     private var accentIndex = 0
     private var wallpaperIndex = 0
+    private var wallpaperUri: Uri? = null
     private var currentTab = "home"
     private var language = "id"
 
@@ -94,6 +94,7 @@ class MainActivity : Activity() {
         darkMode = prefs.getBoolean("dark_mode", true)
         accentIndex = prefs.getInt("accent_index", 0).coerceIn(accents.indices)
         wallpaperIndex = prefs.getInt("wallpaper_index", if (darkMode) 0 else 5).coerceIn(wallpaperColors.indices)
+        wallpaperUri = prefs.getString("wallpaper_uri", null)?.let { runCatching { Uri.parse(it) }.getOrNull() }
         language = prefs.getString("language", "id") ?: "id"
         showPremiumSplash()
         Handler(Looper.getMainLooper()).postDelayed({
@@ -146,10 +147,13 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(20), dp(10), dp(20), dp(10)); setBackgroundColor(backgroundColor)
         }
-        topBar.addView(label("SMART SHIFT SCHEDULE & ALARM", 12f, secondaryText, true), LinearLayout.LayoutParams(0, dp(42), 1f))
+        val brandBlock = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
+        brandBlock.addView(label("SHIFT ALARM", 16f, primaryText, true))
+        brandBlock.addView(label("SMART SHIFT SCHEDULE & ALARM", 9f, secondaryText, true))
+        topBar.addView(brandBlock, LinearLayout.LayoutParams(0, dp(46), 1f))
         topBar.addView(actionButton(if (darkMode) "☼" else "☾", accent) { toggleAppearanceMode() }, LinearLayout.LayoutParams(dp(48), dp(42)))
         root.addView(topBar, LinearLayout.LayoutParams(-1, -2))
-        val scroll = ScrollView(this).apply { setBackgroundColor(backgroundColor); isFillViewport = true; clipToPadding = false }
+        val scroll = ScrollView(this).apply { setBackgroundColor(Color.TRANSPARENT); isFillViewport = true; clipToPadding = false }
         content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(10), dp(20), dp(20)) }
         scroll.addView(content)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -164,7 +168,7 @@ class MainActivity : Activity() {
 
     private fun renderDashboard() {
         content.removeAllViews()
-        content.setBackgroundColor(backgroundColor)
+        content.background = customWallpaperDrawable() ?: android.graphics.drawable.ColorDrawable(backgroundColor)
         if (currentTab == "summary") {
             renderSummaryScreen()
             addBottomNavigation()
@@ -177,7 +181,7 @@ class MainActivity : Activity() {
         }
 
         val hero = card()
-        hero.addView(label(tr("JADWAL DINAS ANDA", "YOUR SHIFT SCHEDULE"), 11f, accent, true))
+        hero.addView(label(tr("DASHBOARD", "DASHBOARD"), 11f, accent, true))
         addSpaceTo(hero, 8)
         hero.addView(label(tr("Atur jadwal, biarkan alarm mengingatkan.", "Set your schedule and let the alarm remind you."), 22f, primaryText, true))
         addSpaceTo(hero, 8)
@@ -333,76 +337,48 @@ class MainActivity : Activity() {
 
     private fun renderProfileScreen() {
         val profile = card()
-        profile.addView(label(tr("PROFILE & PENGATURAN", "PROFILE & SETTINGS"), 12f, accent, true))
-        addSpaceTo(profile, 8)
-        profile.addView(label("Shift Alarm", 24f, primaryText, true))
-        addSpaceTo(profile, 4)
-        profile.addView(label("Smart Shift Schedule & Alarm", 13f, secondaryText, false))
-        addSpaceTo(profile, 18)
-
-        profile.addView(label(tr("TAMPILAN", "APPEARANCE"), 11f, accent, true))
-        addSpaceTo(profile, 8)
-        val appearanceGrid = GridLayout(this).apply { columnCount = 2; useDefaultMargins = false }
-        addProfileTile(appearanceGrid, if (darkMode) "☀️" else "🌙",
-            if (darkMode) tr("MODE TERANG", "LIGHT MODE") else tr("MODE GELAP", "DARK MODE"), accent) { toggleAppearanceMode() }
-        addProfileTile(appearanceGrid, "🎨", tr("WARNA TEMA", "THEME COLOR"), Color.rgb(61, 112, 165)) { openThemeSettings() }
-        addProfileTile(appearanceGrid, "🖼️", tr("WALLPAPER", "WALLPAPER"), Color.rgb(91, 105, 132)) { openWallpaperSettings() }
-        profile.addView(appearanceGrid)
-        addSpaceTo(profile, 16)
-
-        profile.addView(label(tr("BAHASA", "LANGUAGE"), 11f, accent, true))
-        addSpaceTo(profile, 8)
-        val languageGrid = GridLayout(this).apply { columnCount = 2; useDefaultMargins = false }
-        addProfileTile(languageGrid, "🌐", if (language == "id") "INDONESIA" else "ENGLISH", accent) {
+        profile.setPadding(dp(14), dp(12), dp(14), dp(10))
+        profile.addView(label(tr("PENGATURAN", "SETTINGS"), 11f, accent, true))
+        addSpaceTo(profile, 3)
+        profile.addView(label("SHIFT ALARM", 21f, primaryText, true))
+        profile.addView(label("SMART SHIFT SCHEDULE & ALARM", 9f, secondaryText, true))
+        addSpaceTo(profile, 10)
+        val settingsGrid = GridLayout(this).apply { columnCount = 2; useDefaultMargins = false }
+        addProfileTile(settingsGrid, if (darkMode) "☀" else "☾", if (darkMode) tr("MODE TERANG", "LIGHT MODE") else tr("MODE GELAP", "DARK MODE"), accent) { toggleAppearanceMode() }
+        addProfileTile(settingsGrid, "◈", tr("WARNA TEMA", "THEME COLOR"), Color.rgb(61, 112, 165)) { openThemeSettings() }
+        addProfileTile(settingsGrid, "▧", tr("WALLPAPER", "WALLPAPER"), Color.rgb(91, 105, 132)) { openWallpaperSettings() }
+        addProfileTile(settingsGrid, "文", if (language == "id") "BAHASA" else "LANGUAGE", accent) {
             val choices = arrayOf("Bahasa Indonesia", "English")
-            android.app.AlertDialog.Builder(this)
-                .setTitle(tr("Pilih Bahasa", "Choose Language"))
+            android.app.AlertDialog.Builder(this).setTitle(tr("Pilih Bahasa", "Choose Language"))
                 .setSingleChoiceItems(choices, if (language == "id") 0 else 1) { dialog, index ->
                     language = if (index == 0) "id" else "en"
                     getSharedPreferences("shift_alarm_appearance", MODE_PRIVATE).edit().putString("language", language).apply()
-                    dialog.dismiss()
-                    renderDashboard()
-                }
-                .setNegativeButton(tr("Batal", "Cancel"), null)
-                .show()
+                    dialog.dismiss(); renderDashboard()
+                }.setNegativeButton(tr("Batal", "Cancel"), null).show()
         }
-        profile.addView(languageGrid)
-        addSpaceTo(profile, 16)
-
-        profile.addView(label(tr("ALARM & NOTIFIKASI", "ALARMS & NOTIFICATIONS"), 11f, accent, true))
-        addSpaceTo(profile, 8)
-        val alarmGrid = GridLayout(this).apply { columnCount = 2; useDefaultMargins = false }
-        addProfileTile(alarmGrid, "🔊", tr("SUARA ALARM", "ALARM SOUND"), Color.rgb(61, 91, 125)) { openSoundSettings() }
-        addProfileTile(alarmGrid, "🔔", tr("PENGINGAT ABSEN", "ATTENDANCE REMINDER"), Color.rgb(61, 112, 125)) { openAttendanceReminderSettings() }
-        addProfileTile(alarmGrid, "⏰", tr("IZIN ALARM", "ALARM PERMISSION"), Color.rgb(43, 135, 112)) { openAlarmPermissions() }
-        profile.addView(alarmGrid)
-
-        val footer = label("SHIFT ALARM  •  © 2026 mahendradba", 10f, secondaryText, true).apply { gravity = Gravity.CENTER }
-        profile.addView(footer, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
+        addProfileTile(settingsGrid, "♫", tr("SUARA ALARM", "ALARM SOUND"), Color.rgb(61, 91, 125)) { openSoundSettings() }
+        addProfileTile(settingsGrid, "♬", tr("PENGINGAT ABSEN", "ATTENDANCE REMINDER"), Color.rgb(61, 112, 125)) { openAttendanceReminderSettings() }
+        addProfileTile(settingsGrid, "◷", tr("IZIN ALARM", "ALARM PERMISSION"), Color.rgb(43, 135, 112)) { openAlarmPermissions() }
+        profile.addView(settingsGrid)
+        profile.addView(label("VERSI APK  •  Shift Alarm v1.1.1", 10f, secondaryText, true).apply { gravity = Gravity.CENTER },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(9) })
+        profile.addView(label("© 2026 mahendradba", 9f, secondaryText, false).apply { gravity = Gravity.CENTER },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(3) })
         content.addView(profile)
     }
 
     private fun addProfileTile(grid: GridLayout, symbol: String, title: String, tileColor: Int, action: () -> Unit) {
         val tile = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(8), dp(12), dp(8), dp(12))
-            background = rounded(cardColor, 18)
-            elevation = dp(2).toFloat()
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { action() }
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(10), dp(7), dp(8), dp(7)); background = rounded(cardColor, 12)
+            isClickable = true; isFocusable = true; setOnClickListener { action() }
         }
-        tile.addView(label(symbol, 27f, tileColor, true).apply { gravity = Gravity.CENTER })
-        tile.addView(label(title, 11f, primaryText, true).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, dp(8), 0, 0)
-        })
+        tile.addView(label(symbol, 21f, tileColor, true).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(dp(30), dp(34)))
+        tile.addView(label(title, 10f, primaryText, true).apply { gravity = Gravity.CENTER_VERTICAL },
+            LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(6) })
         grid.addView(tile, GridLayout.LayoutParams().apply {
-            width = 0
-            height = dp(112)
-            columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-            setMargins(dp(4), dp(4), dp(4), dp(4))
+            width = 0; height = dp(58); columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+            setMargins(dp(3), dp(3), dp(3), dp(3))
         })
     }
 
@@ -617,19 +593,34 @@ class MainActivity : Activity() {
     }
 
     private fun openWallpaperSettings() {
-        val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle(tr("Pilih Wallpaper", "Choose Wallpaper"))
-            .setSingleChoiceItems(wallpaperNames.toTypedArray(), wallpaperIndex) { alert, index ->
-                wallpaperIndex = index
-                darkMode = index < 5
-                saveAppearance()
-                alert.dismiss()
-                buildDashboard()
-                Toast.makeText(this, tr("Wallpaper " + wallpaperNames[index] + " diterapkan", "Wallpaper " + wallpaperNames[index] + " applied"), Toast.LENGTH_SHORT).show()
+        val options = arrayOf(tr("Wallpaper bawaan", "Built-in wallpapers"), tr("Pilih foto dari galeri", "Choose photo from gallery"))
+        android.app.AlertDialog.Builder(this).setTitle(tr("Wallpaper", "Wallpaper")).setItems(options) { dialog, index ->
+            if (index == 0) {
+                android.app.AlertDialog.Builder(this).setTitle(tr("Pilih Wallpaper", "Choose Wallpaper"))
+                    .setSingleChoiceItems(wallpaperNames.toTypedArray(), wallpaperIndex) { alert, selected ->
+                        wallpaperIndex = selected; wallpaperUri = null; darkMode = selected < 5
+                        saveAppearance(); alert.dismiss(); buildDashboard()
+                    }.setNegativeButton(tr("Batal", "Cancel"), null).show()
+            } else {
+                val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE); type = "image/*"
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                }
+                @Suppress("DEPRECATION")
+                startActivityForResult(picker, 2402)
             }
-            .setNegativeButton("Batal", null)
-            .create()
-        dialog.show()
+            dialog.dismiss()
+        }.setNegativeButton(tr("Tutup", "Close"), null).show()
+    }
+
+    private fun customWallpaperDrawable(): android.graphics.drawable.Drawable? {
+        val uri = wallpaperUri ?: return null
+        return try {
+            val bitmap = contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = 3 })
+            } ?: return null
+            android.graphics.drawable.BitmapDrawable(resources, bitmap).apply { alpha = 110 }
+        } catch (_: Exception) { null }
     }
 
     private fun openSoundSettings() {
@@ -638,7 +629,6 @@ class MainActivity : Activity() {
         val modeLabel = if (gradual) "Bertahap Mengeras" else "Langsung Kencang"
         val options = arrayOf(
             "Pilih nada alarm",
-            "Pratinjau nada",
             "Mode suara: $modeLabel",
             "Durasi bertahap: $duration detik"
         )
@@ -660,8 +650,7 @@ class MainActivity : Activity() {
                         @Suppress("DEPRECATION")
                         startActivityForResult(picker, 2401)
                     }
-                    1 -> previewAlarmTone()
-                    2 -> {
+                    1 -> {
                         val choices = arrayOf("Langsung Kencang", "Bertahap Mengeras")
                         val selected = if (alarmPreferences.isGradualVolume()) 1 else 0
                         android.app.AlertDialog.Builder(this)
@@ -679,7 +668,7 @@ class MainActivity : Activity() {
                             .setNegativeButton("Batal", null)
                             .show()
                     }
-                    3 -> {
+                    2 -> {
                         val labels = arrayOf("10 detik", "20 detik", "30 detik", "45 detik", "60 detik", "90 detik", "120 detik")
                         val values = intArrayOf(10, 20, 30, 45, 60, 90, 120)
                         val selected = values.indexOf(alarmPreferences.getRampDurationSeconds()).coerceAtLeast(0)
@@ -748,42 +737,6 @@ class MainActivity : Activity() {
         dialog.show()
     }
 
-    private fun previewAlarmTone() {
-        val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("Pratinjau Nada Alarm")
-            .setMessage("Tekan Putar untuk mendengarkan nada yang dipilih. Gunakan Stop untuk menghentikannya.")
-            .setPositiveButton("Putar", null)
-            .setNeutralButton("Stop", null)
-            .setNegativeButton("Tutup") { _, _ ->
-                previewRingtone?.stop()
-                previewRingtone = null
-            }
-            .create()
-        dialog.setOnShowListener {
-            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                try {
-                    previewRingtone?.stop()
-                    val uri = alarmPreferences.getRingtoneUri()
-                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                    previewRingtone = uri?.let { RingtoneManager.getRingtone(this, it) }
-                    if (previewRingtone != null) previewRingtone?.play()
-                    else Toast.makeText(this, "Nada alarm tidak tersedia", Toast.LENGTH_LONG).show()
-                } catch (_: Exception) {
-                    Toast.makeText(this, "Nada tidak dapat diputar", Toast.LENGTH_LONG).show()
-                }
-            }
-            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
-                previewRingtone?.stop()
-                previewRingtone = null
-            }
-        }
-        dialog.setOnDismissListener {
-            previewRingtone?.stop()
-            previewRingtone = null
-        }
-        dialog.show()
-    }
-
     @Deprecated("Deprecated in Android API")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -792,10 +745,20 @@ class MainActivity : Activity() {
             val uri = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
             alarmPreferences.setRingtoneUri(uri)
             Toast.makeText(this, "Pilihan nada alarm disimpan", Toast.LENGTH_SHORT).show()
+        } else if (requestCode == 2402 && resultCode == RESULT_OK) {
+            val uri = data?.data ?: return
+            try {
+                val flags = data.flags and (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                contentResolver.takePersistableUriPermission(uri, flags)
+                wallpaperUri = uri; saveAppearance(); buildDashboard()
+                Toast.makeText(this, "Foto galeri diterapkan sebagai wallpaper", Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {
+                Toast.makeText(this, "Foto tidak dapat digunakan. Coba pilih foto lain.", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
-    override fun onPause() { previewRingtone?.stop(); super.onPause() }
+    override fun onPause() { super.onPause() }
     private fun openDatePicker() {
         DatePickerDialog(this, { _, year, month, day ->
             selectedDate = LocalDate.of(year, month + 1, day)
@@ -864,6 +827,7 @@ class MainActivity : Activity() {
             .putBoolean("dark_mode", darkMode)
             .putInt("accent_index", accentIndex)
             .putInt("wallpaper_index", wallpaperIndex)
+            .putString("wallpaper_uri", wallpaperUri?.toString())
             .putString("language", language)
             .apply()
     }
