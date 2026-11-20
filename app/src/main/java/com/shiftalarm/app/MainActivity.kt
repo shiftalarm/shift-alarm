@@ -370,9 +370,35 @@ class MainActivity : Activity() {
         languageRow.addView(label(tr("Bahasa aplikasi", "App language"), 11f, primaryText, false),
             LinearLayout.LayoutParams(0, -2, 1f))
         val languageSpinner = Spinner(this)
-        languageSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("🇮🇩  Indonesia", "🇬🇧  English"))
+        val languageOptions = arrayOf("🇮🇩  Bahasa Indonesia", "🇬🇧  English")
+        languageSpinner.adapter = object : ArrayAdapter<String>(
+            this, android.R.layout.simple_spinner_item, languageOptions
+        ) {
+            private fun styled(position: Int, dropdown: Boolean): TextView =
+                TextView(this@MainActivity).apply {
+                    text = languageOptions[position]
+                    textSize = 14f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                    setTextColor(primaryText)
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(dp(12), dp(10), dp(12), dp(10))
+                    minHeight = dp(46)
+                    if (dropdown) {
+                        background = rounded(
+                            if (position == languageSpinner.selectedItemPosition) {
+                                if (darkMode) Color.rgb(39, 61, 84) else Color.rgb(226, 238, 249)
+                            } else cardColor, 9
+                        )
+                    }
+                }
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                styled(position, false)
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
+                styled(position, true)
+        }
         languageSpinner.setSelection(if (language == "en") 1 else 0)
+        languageSpinner.backgroundTintList = android.content.res.ColorStateList.valueOf(accent)
+        languageSpinner.popupBackground = rounded(cardColor, 12)
         languageSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -384,7 +410,7 @@ class MainActivity : Activity() {
                 }
             }
         }
-        languageRow.addView(languageSpinner, LinearLayout.LayoutParams(dp(150), dp(42)))
+        languageRow.addView(languageSpinner, LinearLayout.LayoutParams(dp(184), dp(46)))
         languageCard.addView(languageRow)
         content.addView(languageCard)
         addSpace(8)
@@ -430,20 +456,67 @@ class MainActivity : Activity() {
 
     private fun addBottomNavigation() {
         bottomNavigation.removeAllViews()
-        val tabs = listOf("home" to tr("HOME", "HOME"), "summary" to tr("RINGKASAN", "SUMMARY"), "profile" to tr("PROFIL", "PROFILE"))
-        tabs.forEach { (key, title) ->
+        val tabs = listOf(
+            Triple("home", tr("HOME", "HOME"), "⌂"),
+            Triple("summary", tr("RINGKASAN", "SUMMARY"), "▤"),
+            Triple("profile", tr("PROFIL", "PROFILE"), "⚙")
+        )
+        tabs.forEach { (key, title, glyph) ->
             val selected = currentTab == key
-            val button = TextView(this).apply {
-                text = title
-                textSize = 11f
-                typeface = Typeface.DEFAULT_BOLD
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(5), dp(4), dp(5), dp(3))
+                background = rounded(
+                    if (selected) accent else Color.TRANSPARENT, 14
+                )
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    if (currentTab != key) {
+                        animate().scaleX(0.96f).scaleY(0.96f).setDuration(65)
+                            .withEndAction {
+                                currentTab = key
+                                renderDashboard()
+                            }.start()
+                    }
+                }
+            }
+            item.addView(TextView(this).apply {
+                text = glyph
+                textSize = 18f
                 gravity = Gravity.CENTER
                 setTextColor(if (selected) Color.WHITE else secondaryText)
-                background = rounded(if (selected) accent else cardColor, 12)
-                setPadding(dp(10), dp(13), dp(10), dp(13))
-                setOnClickListener { currentTab = key; renderDashboard() }
+                typeface = Typeface.DEFAULT_BOLD
+            }, LinearLayout.LayoutParams(-1, dp(21)))
+            item.addView(TextView(this).apply {
+                text = title
+                textSize = 9.5f
+                gravity = Gravity.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(if (selected) Color.WHITE else secondaryText)
+                setPadding(0, dp(1), 0, 0)
+            }, LinearLayout.LayoutParams(-1, dp(16)))
+            val indicator = View(this).apply {
+                background = rounded(if (selected) Color.WHITE else Color.TRANSPARENT, 4)
+                alpha = if (selected) 1f else 0f
             }
-            bottomNavigation.addView(button, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(4); marginEnd = dp(4) })
+            item.addView(indicator, LinearLayout.LayoutParams(dp(if (selected) 24 else 8), dp(3)).apply {
+                topMargin = dp(2)
+            })
+            if (selected) {
+                item.alpha = 0f
+                item.scaleY = 0.92f
+                item.animate().alpha(1f).scaleY(1f).setDuration(220)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+            }
+            bottomNavigation.addView(
+                item,
+                LinearLayout.LayoutParams(0, dp(50), 1f).apply {
+                    marginStart = dp(4)
+                    marginEnd = dp(4)
+                }
+            )
         }
     }
 
@@ -797,13 +870,24 @@ class MainActivity : Activity() {
         if (requestCode == 2401) {
             @Suppress("DEPRECATION")
             val uri = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
+            persistRingtoneReadPermission(uri)
             alarmPreferences.setRingtoneUri(uri)
             Toast.makeText(this, tr("Pilihan nada alarm disimpan", "Alarm tone saved"), Toast.LENGTH_SHORT).show()
         } else if (requestCode == 2403) {
             @Suppress("DEPRECATION")
             val uri = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
+            persistRingtoneReadPermission(uri)
             alarmPreferences.setAttendanceRingtoneUri(uri)
             Toast.makeText(this, tr("Nada pengingat absen disimpan", "Attendance reminder tone saved"), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun persistRingtoneReadPermission(uri: Uri?) {
+        if (uri == null) return
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
         }
     }
 
