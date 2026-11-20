@@ -1,4 +1,3 @@
-
 name: Build Shift Alarm APK
 
 on:
@@ -27,56 +26,45 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Fix AndroidManifest XML
+      - name: Fix and validate AndroidManifest XML
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
-          path = Path("app/src/main/AndroidManifest.xml")
-          raw = path.read_bytes()
-
-          # Remove UTF-8 BOM if present
-          raw = raw.removeprefix(b'\xef\xbb\xbf')
-
-          # Remove whitespace before XML declaration
-          raw = raw.lstrip(b' \t\r\n')
-
-          # Ensure XML declaration starts at byte zero
-          path.write_bytes(raw)
-
-          print("Manifest leading whitespace fixed.")
-          print("First bytes:", repr(raw[:50]))
-          PY
-
-      - name: Validate AndroidManifest XML
-        run: |
-          python3 - <<'PY'
           import xml.etree.ElementTree as ET
-          from pathlib import Path
 
           path = Path("app/src/main/AndroidManifest.xml")
-          raw = path.read_bytes()
-
+          raw = path.read_bytes().removeprefix(b'\xef\xbb\xbf').lstrip(b' \t\r\n')
           ET.fromstring(raw)
-
+          path.write_bytes(raw)
           print("SUCCESS: AndroidManifest XML is valid.")
-          print("First bytes:", repr(raw[:50]))
           PY
 
-      - name: Build Debug APK
+      - name: Decode release keystore
+        env:
+          SHIFTALARM_KEYSTORE_BASE64: ${{ secrets.SHIFTALARM_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$SHIFTALARM_KEYSTORE_BASE64" || (echo "Missing SHIFTALARM_KEYSTORE_BASE64 secret" && exit 1)
+          printf '%s' "$SHIFTALARM_KEYSTORE_BASE64" | base64 --decode > release-key.jks
+          test -s release-key.jks || (echo "Decoded keystore is empty" && exit 1)
+
+      - name: Build signed Release APK
+        env:
+          SHIFTALARM_KEYSTORE_PATH: ${{ github.workspace }}/release-key.jks
+          SHIFTALARM_KEYSTORE_PASSWORD: ${{ secrets.SHIFTALARM_KEYSTORE_PASSWORD }}
+          SHIFTALARM_KEY_ALIAS: ${{ secrets.SHIFTALARM_KEY_ALIAS }}
+          SHIFTALARM_KEY_PASSWORD: ${{ secrets.SHIFTALARM_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleRelease --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/Shift-Alarm-v1.0.1.apk
 
-      - name: Rename APK with version
-        if: success()
-        run: |
-          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Shift-Alarm-v1.0.1.apk
-
-      - name: Upload Shift Alarm APK
-        if: success()
+      - name: Upload signed Shift Alarm APK
         uses: actions/upload-artifact@v4
         with:
           name: Shift-Alarm-v1.0.1
-          path: app/build/outputs/apk/debug/Shift-Alarm-v1.0.1.apk
+          path: app/build/outputs/apk/release/Shift-Alarm-v1.0.1.apk
           if-no-files-found: error
+
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f release-key.jks
