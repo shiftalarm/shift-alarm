@@ -18,10 +18,13 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val shiftCode = intent.getStringExtra(AlarmScheduler.EXTRA_SHIFT_CODE) ?: return
         val date = intent.getStringExtra(AlarmScheduler.EXTRA_DATE) ?: return
+        val alarmType = intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_TYPE)
+            ?: AlarmScheduler.ALARM_TYPE_START
         val isSnooze = intent.action == AlarmScheduler.ACTION_SNOOZE
         val reminderMinutes = intent.getIntExtra(AlarmScheduler.EXTRA_REMINDER, 0)
 
-        if (!isSnooze && reminderMinutes == AlarmScheduler.ATTENDANCE_REMINDER_MINUTES) {
+        if (!isSnooze && alarmType == AlarmScheduler.ALARM_TYPE_START &&
+            reminderMinutes == AlarmScheduler.ATTENDANCE_REMINDER_MINUTES) {
             showAttendanceReminder(context, shiftCode)
             return
         }
@@ -32,14 +35,12 @@ class AlarmReceiver : BroadcastReceiver() {
             putExtra(AlarmScheduler.EXTRA_DATE, date)
             putExtra(AlarmScheduler.EXTRA_REMINDER, 0)
             putExtra(AlarmScheduler.EXTRA_ALARM_TIME, intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_TIME))
+            putExtra(AlarmScheduler.EXTRA_ALARM_TYPE, alarmType)
         }
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
-            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(serviceIntent)
+            else context.startService(serviceIntent)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -68,11 +69,9 @@ class AlarmReceiver : BroadcastReceiver() {
         }.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Persiapan Dinas $shiftCode")
             .setContentText("30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap.")
-            .setStyle(
-                Notification.BigTextStyle().bigText(
-                    "30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap."
-                )
-            )
+            .setStyle(Notification.BigTextStyle().bigText(
+                "30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap."
+            ))
             .setCategory(Notification.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setOngoing(false)
@@ -81,7 +80,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
         try {
             manager.notify(ATTENDANCE_NOTIFICATION_ID, notification)
-        } catch (e: SecurityException) {
+        } catch (_: SecurityException) {
             // Izin notifikasi boleh dimatikan; alarm utama tetap dijadwalkan terpisah.
         }
     }
