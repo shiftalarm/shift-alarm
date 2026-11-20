@@ -14,6 +14,8 @@ import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
@@ -45,6 +47,7 @@ class MainActivity : Activity() {
     private var accentIndex = 0
     private var wallpaperIndex = 0
     private var currentTab = "home"
+    private var language = "id"
 
     private val accents = listOf(
         Color.rgb(36, 190, 220),   // Ocean
@@ -89,9 +92,40 @@ class MainActivity : Activity() {
         darkMode = prefs.getBoolean("dark_mode", true)
         accentIndex = prefs.getInt("accent_index", 0).coerceIn(accents.indices)
         wallpaperIndex = prefs.getInt("wallpaper_index", if (darkMode) 0 else 5).coerceIn(wallpaperColors.indices)
-        buildDashboard()
-        requestNotificationPermission()
+        language = prefs.getString("language", "id") ?: "id"
+        showPremiumSplash()
+        Handler(Looper.getMainLooper()).postDelayed({
+            buildDashboard()
+            requestNotificationPermission()
+        }, 900)
     }
+
+    private fun showPremiumSplash() {
+        val splash = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(28), dp(28), dp(28), dp(28))
+            setBackgroundColor(backgroundColor)
+        }
+        val mark = TextView(this).apply {
+            text = "SA"
+            textSize = 38f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = rounded(accent, 26)
+            elevation = dp(8).toFloat()
+        }
+        splash.addView(mark, LinearLayout.LayoutParams(dp(88), dp(88)))
+        splash.addView(label("SHIFT ALARM", 25f, primaryText, true).apply { gravity = Gravity.CENTER },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
+        splash.addView(label("SMART SHIFT SCHEDULE & ALARM", 10f, secondaryText, true).apply { gravity = Gravity.CENTER },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(7) })
+        setContentView(splash)
+    }
+
+    private fun tr(indonesian: String, english: String): String =
+        if (language == "en") english else indonesian
 
     private fun buildDashboard() {
         val scroll = ScrollView(this).apply {
@@ -317,31 +351,47 @@ class MainActivity : Activity() {
 
     private fun renderProfileScreen() {
         val profile = card()
-        profile.addView(label("PROFILE & PENGATURAN", 12f, accent, true))
+        profile.addView(label(tr("PROFILE & PENGATURAN", "PROFILE & SETTINGS"), 12f, accent, true))
         addSpaceTo(profile, 8)
         profile.addView(label("Shift Alarm", 24f, primaryText, true))
         addSpaceTo(profile, 4)
         profile.addView(label("Smart Shift Schedule & Alarm", 13f, secondaryText, false))
         addSpaceTo(profile, 16)
-        profile.addView(label("Tampilan", 11f, accent, true))
+        profile.addView(label(tr("Tampilan", "Appearance"), 11f, accent, true))
         addSpaceTo(profile, 8)
-        profile.addView(actionButton(if (darkMode) "GUNAKAN LIGHT MODE" else "GUNAKAN DARK MODE", accent) {
+        profile.addView(actionButton(if (darkMode) tr("GUNAKAN LIGHT MODE", "USE LIGHT MODE") else tr("GUNAKAN DARK MODE", "USE DARK MODE"), accent) {
             darkMode = !darkMode
             saveAppearance()
             renderDashboard()
         })
         addSpaceTo(profile, 8)
-        profile.addView(actionButton("PILIH WARNA AKSEN", accent) { openThemeSettings() })
+        profile.addView(actionButton(tr("PILIH WARNA AKSEN", "CHOOSE ACCENT COLOR"), accent) { openThemeSettings() })
         addSpaceTo(profile, 8)
-        profile.addView(actionButton("PILIH WALLPAPER", Color.rgb(91, 105, 132)) { openWallpaperSettings() })
+        profile.addView(actionButton(tr("PILIH WALLPAPER", "CHOOSE WALLPAPER"), Color.rgb(91, 105, 132)) { openWallpaperSettings() })
         addSpaceTo(profile, 16)
-        profile.addView(label("Alarm & Notifikasi", 11f, accent, true))
+        profile.addView(label(tr("Bahasa", "Language"), 11f, accent, true))
         addSpaceTo(profile, 8)
-        profile.addView(actionButton("PENGATURAN SUARA ALARM", Color.rgb(61, 91, 125)) { openSoundSettings() })
+        profile.addView(actionButton(if (language == "id") "BAHASA: INDONESIA" else "LANGUAGE: ENGLISH", accent) {
+            val choices = arrayOf("Bahasa Indonesia", "English")
+            android.app.AlertDialog.Builder(this)
+                .setTitle(tr("Pilih Bahasa", "Choose Language"))
+                .setSingleChoiceItems(choices, if (language == "id") 0 else 1) { dialog, index ->
+                    language = if (index == 0) "id" else "en"
+                    getSharedPreferences("shift_alarm_appearance", MODE_PRIVATE).edit().putString("language", language).apply()
+                    dialog.dismiss()
+                    renderDashboard()
+                }
+                .setNegativeButton(tr("Batal", "Cancel"), null)
+                .show()
+        })
+        addSpaceTo(profile, 16)
+        profile.addView(label(tr("Alarm & Notifikasi", "Alarm & Notifications"), 11f, accent, true))
         addSpaceTo(profile, 8)
-        profile.addView(actionButton("PENGINGAT ABSEN", Color.rgb(61, 91, 125)) { openAttendanceReminderSettings() })
+        profile.addView(actionButton(tr("PENGATURAN SUARA ALARM", "ALARM SOUND SETTINGS"), Color.rgb(61, 91, 125)) { openSoundSettings() })
         addSpaceTo(profile, 8)
-        profile.addView(actionButton("IZIN ALARM TEPAT", Color.rgb(61, 91, 125)) { openExactAlarmSettings() })
+        profile.addView(actionButton(tr("PENGINGAT ABSEN", "ATTENDANCE REMINDER"), Color.rgb(61, 91, 125)) { openAttendanceReminderSettings() })
+        addSpaceTo(profile, 8)
+        profile.addView(actionButton(tr("IZIN ALARM TEPAT", "EXACT ALARM PERMISSION"), Color.rgb(61, 91, 125)) { openExactAlarmSettings() })
         content.addView(profile)
     }
 
@@ -353,7 +403,7 @@ class MainActivity : Activity() {
             setPadding(dp(8), dp(8), dp(8), dp(8))
             background = rounded(cardColor, 18)
         }
-        val tabs = listOf("home" to "HOME", "summary" to "SUMMARY", "profile" to "PROFILE")
+        val tabs = listOf("home" to "HOME", "summary" to tr("RINGKASAN", "SUMMARY"), "profile" to tr("PROFIL", "PROFILE"))
         tabs.forEach { (key, title) ->
             val selected = currentTab == key
             val button = TextView(this).apply {
@@ -772,6 +822,7 @@ class MainActivity : Activity() {
             .putBoolean("dark_mode", darkMode)
             .putInt("accent_index", accentIndex)
             .putInt("wallpaper_index", wallpaperIndex)
+            .putString("language", language)
             .apply()
     }
 
