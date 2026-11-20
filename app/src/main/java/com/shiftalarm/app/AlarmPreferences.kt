@@ -36,7 +36,7 @@ class AlarmPreferences(context: Context) {
     }
 
     fun clearAlarmTime(date: LocalDate) {
-        prefs.edit().remove("alarm_start_time_$date").remove("alarm_end_time_$date").apply()
+        prefs.edit().remove("alarm_start_time_$date").remove("alarm_end_time_$date").remove("alarm_time_$date").apply()
     }
 
     fun getRingtoneUri(): Uri? =
