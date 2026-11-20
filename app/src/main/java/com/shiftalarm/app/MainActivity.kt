@@ -186,12 +186,12 @@ class MainActivity : Activity() {
         addSpace(16)
 
         val nextCard = card()
-        nextCard.addView(label("DINAS BERIKUTNYA", 11f, accent, true))
+        nextCard.addView(label(tr("DINAS BERIKUTNYA", "UPCOMING SHIFT"), 11f, accent, true))
         addSpaceTo(nextCard, 8)
         upcomingText = label("", 18f, primaryText, true)
         nextCard.addView(upcomingText)
         addSpaceTo(nextCard, 5)
-        nextCard.addView(label("Pengingat persiapan otomatis 30 menit sebelum alarm utama.", 12f, secondaryText, false))
+        nextCard.addView(label(tr("Pengingat persiapan otomatis 30 menit sebelum alarm utama.", "Automatic preparation reminder 30 minutes before the main alarm."), 12f, secondaryText, false))
         content.addView(nextCard)
         updateUpcoming()
         addSpace(18)
@@ -282,9 +282,9 @@ class MainActivity : Activity() {
 
     private fun renderSummaryScreen() {
         val header = card()
-        header.addView(label("RINGKASAN JADWAL", 12f, accent, true))
+        header.addView(label(tr("RINGKASAN JADWAL", "SCHEDULE SUMMARY"), 12f, accent, true))
         addSpaceTo(header, 8)
-        header.addView(label("Rekap seluruh jadwal dinas yang tersimpan.", 22f, primaryText, true))
+        header.addView(label(tr("Rekap seluruh jadwal dinas yang tersimpan.", "Overview of all saved shifts."), 22f, primaryText, true))
         content.addView(header)
         addSpace(14)
 
@@ -454,10 +454,11 @@ class MainActivity : Activity() {
             .sortedBy { it.key }
             .firstOrNull()
         upcomingText.text = if (upcoming == null) {
-            "Belum ada jadwal tersimpan"
+            tr("Belum ada jadwal tersimpan", "No saved schedule yet")
         } else {
             val shift = ShiftDefinitions.find(upcoming.value)
-            "${upcoming.value}  •  ${upcoming.key.format(DateTimeFormatter.ofPattern("dd MMMM yyyy", Locale("id", "ID")))}\nMulai ${shift?.startTime ?: "--:--"}"
+            val startTime = shift?.let { alarmPreferences.getStartAlarmTime(upcoming.key, it.startTime) }?.toString() ?: "--:--"
+            "${upcoming.value}  •  ${upcoming.key.format(DateTimeFormatter.ofPattern("dd MMMM yyyy", currentLocale()))}\n${tr("Mulai", "Starts")} $startTime"
         }
     }
 
