@@ -343,36 +343,70 @@ class MainActivity : Activity() {
     }
 
     private fun openSoundSettings() {
-        val options = arrayOf("Pilih nada alarm", "Pratinjau nada", "Mode volume bertahap / langsung", "Durasi hingga maksimal")
-        android.app.AlertDialog.Builder(this).setTitle("Pengaturan Suara Alarm").setItems(options) { _, which ->
-            when (which) {
-                0 -> {
-                    val picker = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Pilih Nada Alarm")
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, alarmPreferences.getRingtoneUri() ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))
+        val gradual = alarmPreferences.isGradualVolume()
+        val duration = alarmPreferences.getRampDurationSeconds()
+        val modeLabel = if (gradual) "Bertahap Mengeras" else "Langsung Kencang"
+        val options = arrayOf(
+            "Pilih nada alarm",
+            "Pratinjau nada",
+            "Mode suara: $modeLabel",
+            "Durasi bertahap: $duration detik"
+        )
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Pengaturan Suara Alarm")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> {
+                        val picker = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Pilih Nada Alarm")
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                            putExtra(
+                                RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                                alarmPreferences.getRingtoneUri() ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                            )
+                        }
+                        @Suppress("DEPRECATION")
+                        startActivityForResult(picker, 2401)
                     }
-                    @Suppress("DEPRECATION")
-                    startActivityForResult(picker, 2401)
-                }
-                1 -> previewAlarmTone()
-                2 -> {
-                    val enabled = !alarmPreferences.isGradualVolume()
-                    alarmPreferences.setGradualVolume(enabled)
-                    Toast.makeText(this, if (enabled) "Volume bertahap aktif" else "Alarm langsung kencang aktif", Toast.LENGTH_SHORT).show()
-                }
-                3 -> {
-                    val labels = arrayOf("10 detik", "20 detik", "30 detik", "45 detik", "60 detik", "90 detik", "120 detik")
-                    val values = intArrayOf(10, 20, 30, 45, 60, 90, 120)
-                    val selected = values.indexOf(alarmPreferences.getRampDurationSeconds()).coerceAtLeast(0)
-                    android.app.AlertDialog.Builder(this).setTitle("Durasi volume bertahap").setSingleChoiceItems(labels, selected) { dialog, index ->
-                        alarmPreferences.setRampDurationSeconds(values[index]); dialog.dismiss()
-                    }.setNegativeButton("Batal", null).show()
+                    1 -> previewAlarmTone()
+                    2 -> {
+                        val choices = arrayOf("Langsung Kencang", "Bertahap Mengeras")
+                        val selected = if (alarmPreferences.isGradualVolume()) 1 else 0
+                        android.app.AlertDialog.Builder(this)
+                            .setTitle("Pilih Mode Volume")
+                            .setSingleChoiceItems(choices, selected) { dialog, index ->
+                                val useGradual = index == 1
+                                alarmPreferences.setGradualVolume(useGradual)
+                                dialog.dismiss()
+                                Toast.makeText(
+                                    this,
+                                    if (useGradual) "Mode Bertahap Mengeras aktif" else "Mode Langsung Kencang aktif",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            .setNegativeButton("Batal", null)
+                            .show()
+                    }
+                    3 -> {
+                        val labels = arrayOf("10 detik", "20 detik", "30 detik", "45 detik", "60 detik", "90 detik", "120 detik")
+                        val values = intArrayOf(10, 20, 30, 45, 60, 90, 120)
+                        val selected = values.indexOf(alarmPreferences.getRampDurationSeconds()).coerceAtLeast(0)
+                        android.app.AlertDialog.Builder(this)
+                            .setTitle("Durasi hingga volume maksimal")
+                            .setSingleChoiceItems(labels, selected) { dialog, index ->
+                                alarmPreferences.setRampDurationSeconds(values[index])
+                                dialog.dismiss()
+                                Toast.makeText(this, "Durasi ${values[index]} detik disimpan", Toast.LENGTH_SHORT).show()
+                            }
+                            .setNegativeButton("Batal", null)
+                            .show()
+                    }
                 }
             }
-        }.setNegativeButton("Tutup", null).show()
+            .setNegativeButton("Tutup", null)
+            .show()
     }
 
     private fun previewAlarmTone() {
