@@ -196,7 +196,7 @@ class MainActivity : Activity() {
         }
         alarmTimeActions.addView(actionButton("ATUR JAM MULAI", accent) { openAlarmTimePicker(AlarmScheduler.ALARM_TYPE_START) },
             LinearLayout.LayoutParams(0, dp(44), 1f))
-        alarmTimeActions.addView(spaceView(8))
+        alarmTimeActions.addView(View(this), LinearLayout.LayoutParams(dp(8), 1))
         alarmTimeActions.addView(actionButton("ATUR JAM PULANG", Color.rgb(61, 91, 125)) { openAlarmTimePicker(AlarmScheduler.ALARM_TYPE_END) },
             LinearLayout.LayoutParams(0, dp(44), 1f))
         editor.addView(alarmTimeActions)
@@ -342,8 +342,8 @@ class MainActivity : Activity() {
     }
 
     private fun openAlarmTimePicker(alarmType: String) {
-        val code = store.getShift(selectedDate)
-            ?: ShiftDefinitions.all.getOrNull(shiftSpinner.selectedItemPosition)?.code
+        val code = ShiftDefinitions.all.getOrNull(shiftSpinner.selectedItemPosition)?.code
+            ?: store.getShift(selectedDate)
             ?: return
         val shift = ShiftDefinitions.find(code) ?: return
         val isStart = alarmType == AlarmScheduler.ALARM_TYPE_START
