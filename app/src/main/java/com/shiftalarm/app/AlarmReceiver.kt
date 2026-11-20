@@ -26,7 +26,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
         if (!isSnooze && alarmType == AlarmScheduler.ALARM_TYPE_START &&
             reminderMinutes == AlarmScheduler.ATTENDANCE_REMINDER_MINUTES) {
-            showAttendanceReminder(context, shiftCode, date)
+            startAttendanceReminder(context, shiftCode, date)
             return
         }
 
@@ -47,12 +47,26 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun showAttendanceReminder(context: Context, shiftCode: String, date: String) {
+    private fun startAttendanceReminder(context: Context, shiftCode: String, date: String) {
+        val serviceIntent = Intent(context, AttendanceReminderService::class.java).apply {
+            putExtra(AlarmScheduler.EXTRA_SHIFT_CODE, shiftCode)
+            putExtra(AlarmScheduler.EXTRA_DATE, date)
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(serviceIntent)
+            else context.startService(serviceIntent)
+        } catch (error: Exception) {
+            error.printStackTrace()
+            showAttendanceReminderFallback(context, shiftCode, date)
+        }
+    }
+
+    private fun showAttendanceReminderFallback(context: Context, shiftCode: String, date: String) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val prefs = AlarmPreferences(context)
         val reminderText = prefs.getAttendanceReminderText()
         val soundUri = prefs.getAttendanceRingtoneUri() ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        val channelId = "shift_attendance_v3_" + (soundUri?.toString()?.hashCode()?.toUInt()?.toString(16) ?: "default")
+        val channelId = "shift_attendance_fallback_v4_" + (soundUri?.toString()?.hashCode()?.toUInt()?.toString(16) ?: "default")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, "Pengingat Absen", NotificationManager.IMPORTANCE_HIGH).apply {
