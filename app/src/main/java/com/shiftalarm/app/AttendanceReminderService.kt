@@ -30,6 +30,7 @@ class AttendanceReminderService : Service() {
         private const val TAG = "ShiftAttendanceReminder"
         private const val CHANNEL_ID = "shift_attendance_audio_v2"
         private const val NOTIFICATION_ID = 2031
+        const val ACTION_DISMISS = "com.shiftalarm.app.ACTION_DISMISS_ATTENDANCE_REMINDER"
     }
 
     override fun onCreate() {
@@ -81,7 +82,7 @@ class AttendanceReminderService : Service() {
     private fun buildNotification(shiftCode: String, ongoing: Boolean): Notification {
         val text = AlarmPreferences(this).getAttendanceReminderText()
         val dismissIntent = Intent(this, AttendanceReminderService::class.java).apply {
-            action = Actions.ACTION_DISMISS
+            action = ACTION_DISMISS
         }
         val dismiss = PendingIntent.getService(
             this, NOTIFICATION_ID, dismissIntent,
@@ -196,11 +197,4 @@ class AttendanceReminderService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private object Actions {
-        const val ACTION_DISMISS = "com.shiftalarm.app.ACTION_DISMISS_ATTENDANCE_REMINDER"
-    }
-
-    companion object {
-        const val ACTION_DISMISS = "com.shiftalarm.app.ACTION_DISMISS_ATTENDANCE_REMINDER"
-    }
 }
