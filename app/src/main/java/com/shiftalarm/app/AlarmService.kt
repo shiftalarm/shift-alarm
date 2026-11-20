@@ -55,6 +55,9 @@ class AlarmService : Service() {
         val date = intent?.getStringExtra(AlarmScheduler.EXTRA_DATE) ?: ""
         val alarmTime = intent?.getStringExtra(AlarmScheduler.EXTRA_ALARM_TIME)
         val alarmType = intent?.getStringExtra(AlarmScheduler.EXTRA_ALARM_TYPE) ?: AlarmScheduler.ALARM_TYPE_START
+        if (date.isNotBlank()) {
+            AlarmPreferences(this).setActiveAlarm(shiftCode, date, alarmTime ?: "00:00", alarmType)
+        }
         val notification = buildNotification(shiftCode, date, alarmTime, alarmType)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
