@@ -388,7 +388,8 @@ class MainActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 2401 && resultCode == RESULT_OK) {
-            val uri = data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            @Suppress("DEPRECATION")
+            val uri = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
             alarmPreferences.setRingtoneUri(uri)
             Toast.makeText(this, "Pilihan nada alarm disimpan", Toast.LENGTH_SHORT).show()
         }
