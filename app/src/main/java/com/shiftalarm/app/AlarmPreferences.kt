@@ -44,6 +44,23 @@ class AlarmPreferences(context: Context) {
     private fun startTimeKey(date: LocalDate) = "alarm_time_$date"
     private fun endTimeKey(date: LocalDate) = "alarm_end_time_$date"
 
+    fun isAttendanceReminderEnabled(): Boolean = prefs.getBoolean(KEY_REMINDER_ENABLED, true)
+
+    fun setAttendanceReminderEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_REMINDER_ENABLED, enabled).apply()
+    }
+
+    fun getAttendanceReminderText(): String =
+        prefs.getString(KEY_REMINDER_TEXT, DEFAULT_REMINDER_TEXT)?.takeIf { it.isNotBlank() } ?: DEFAULT_REMINDER_TEXT
+
+    fun setAttendanceReminderText(message: String) {
+        prefs.edit().putString(KEY_REMINDER_TEXT, message.trim().ifBlank { DEFAULT_REMINDER_TEXT }).apply()
+    }
+
+    fun resetAttendanceReminderText() {
+        prefs.edit().remove(KEY_REMINDER_TEXT).apply()
+    }
+
     fun getRingtoneUri(): Uri? =
         prefs.getString(KEY_RINGTONE_URI, null)?.let { runCatching { Uri.parse(it) }.getOrNull() }
 
@@ -64,6 +81,9 @@ class AlarmPreferences(context: Context) {
     }
 
     companion object {
+        const val KEY_REMINDER_ENABLED = "attendance_reminder_enabled"
+        const val KEY_REMINDER_TEXT = "attendance_reminder_text"
+        const val DEFAULT_REMINDER_TEXT = "30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap."
         const val KEY_RINGTONE_URI = "alarm_ringtone_uri"
         const val KEY_GRADUAL_VOLUME = "gradual_volume"
         const val KEY_RAMP_DURATION = "ramp_duration_seconds"
