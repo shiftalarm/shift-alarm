@@ -13,6 +13,7 @@
     <application
         android:allowBackup="false"
         android:label="Shift Alarm"
+        android:icon="@drawable/ic_shift_alarm"
         android:supportsRtl="true">
 
         <activity
