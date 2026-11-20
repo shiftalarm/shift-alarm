@@ -44,6 +44,17 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/shiftalarm-release.jks"
           test -s "$RUNNER_TEMP/shiftalarm-release.jks"
 
+      - name: Verify keystore credentials
+        env:
+          STORE_PASSWORD: ${{ secrets.SHIFTALARM_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SHIFTALARM_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SHIFTALARM_KEY_PASSWORD }}
+        run: |
+          keytool -list -keystore "$RUNNER_TEMP/shiftalarm-release.jks" -storepass:env STORE_PASSWORD >/dev/null
+          echo "Keystore password: OK"
+          keytool -exportcert -alias "$KEY_ALIAS" -keystore "$RUNNER_TEMP/shiftalarm-release.jks" -storepass:env STORE_PASSWORD -keypass:env KEY_PASSWORD -file "$RUNNER_TEMP/shiftalarm-check.cer" >/dev/null
+          echo "Key alias and key password: OK"
+
       - name: Build signed Release APK (retry transient repository errors)
         env:
           SHIFTALARM_KEYSTORE_PATH: ${{ runner.temp }}/shiftalarm-release.jks
