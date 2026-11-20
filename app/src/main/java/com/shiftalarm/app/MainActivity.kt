@@ -188,7 +188,18 @@ class MainActivity : Activity() {
         if (selectedIndex >= 0) shiftSpinner.setSelection(selectedIndex)
         editor.addView(shiftSpinner, LinearLayout.LayoutParams(-1, dp(48)))
         addSpaceTo(editor, 8)
-        editor.addView(actionButton("ATUR JAM ALARM", accent) { openAlarmTimePicker() })
+        editor.addView(label("Pengaturan jam khusus tanggal ini", 11f, secondaryText, true))
+        addSpaceTo(editor, 6)
+        val alarmTimeActions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        alarmTimeActions.addView(actionButton("ATUR JAM MULAI", accent) { openAlarmTimePicker(AlarmScheduler.ALARM_TYPE_START) },
+            LinearLayout.LayoutParams(0, dp(44), 1f))
+        alarmTimeActions.addView(spaceView(8))
+        alarmTimeActions.addView(actionButton("ATUR JAM PULANG", Color.rgb(61, 91, 125)) { openAlarmTimePicker(AlarmScheduler.ALARM_TYPE_END) },
+            LinearLayout.LayoutParams(0, dp(44), 1f))
+        editor.addView(alarmTimeActions)
         addSpaceTo(editor, 12)
         editor.addView(actionButton("SIMPAN JADWAL", accent) { saveSchedule() })
         addSpaceTo(editor, 8)
@@ -330,16 +341,36 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun openAlarmTimePicker() {
-        val code = store.getShift(selectedDate) ?: ShiftDefinitions.all.getOrNull(shiftSpinner.selectedItemPosition)?.code ?: return
-        val defaultTime = ShiftDefinitions.find(code)?.startTime ?: java.time.LocalTime.of(6, 0)
-        val current = alarmPreferences.getAlarmTime(selectedDate, defaultTime)
+    private fun openAlarmTimePicker(alarmType: String) {
+        val code = store.getShift(selectedDate)
+            ?: ShiftDefinitions.all.getOrNull(shiftSpinner.selectedItemPosition)?.code
+            ?: return
+        val shift = ShiftDefinitions.find(code) ?: return
+        val isStart = alarmType == AlarmScheduler.ALARM_TYPE_START
+        val defaultTime = if (isStart) shift.startTime else shift.endTime
+        val current = if (isStart) {
+            alarmPreferences.getStartAlarmTime(selectedDate, defaultTime)
+        } else {
+            alarmPreferences.getEndAlarmTime(selectedDate, defaultTime)
+        }
+        val title = if (isStart) "Atur Jam Mulai" else "Atur Jam Pulang"
         TimePickerDialog(this, { _, hour, minute ->
-            alarmPreferences.setAlarmTime(selectedDate, java.time.LocalTime.of(hour, minute))
-            if (store.getShift(selectedDate) != null) runCatching { scheduler.cancelShift(selectedDate, code); scheduler.scheduleShift(selectedDate, code) }
-            Toast.makeText(this, "Jam alarm disimpan", Toast.LENGTH_SHORT).show()
+            val selectedTime = java.time.LocalTime.of(hour, minute)
+            if (isStart) alarmPreferences.setStartAlarmTime(selectedDate, selectedTime)
+            else alarmPreferences.setEndAlarmTime(selectedDate, selectedTime)
+
+            val savedCode = store.getShift(selectedDate)
+            if (savedCode != null && scheduler.canScheduleExactAlarms()) {
+                runCatching {
+                    scheduler.cancelShift(selectedDate, savedCode)
+                    scheduler.scheduleShift(selectedDate, savedCode)
+                }.onFailure {
+                    Toast.makeText(this, "Jam tersimpan, tetapi alarm perlu dijadwalkan ulang: ${it.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+            Toast.makeText(this, "$title tanggal ini: ${selectedTime}", Toast.LENGTH_SHORT).show()
             renderDashboard()
-        }, current.hour, current.minute, true).show()
+        }, current.hour, current.minute, true).apply { setTitle(title) }.show()
     }
 
     private fun openSoundSettings() {
