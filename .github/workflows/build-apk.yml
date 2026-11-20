@@ -30,6 +30,10 @@ jobs:
           ET.parse(Path("app/src/main/AndroidManifest.xml"))
           print("SUCCESS: AndroidManifest XML is valid.")
           PY
+      - name: Compile debug variant (source and Kotlin validation)
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
       - name: Decode release keystore
         env:
           SHIFTALARM_KEYSTORE_BASE64: \${{ secrets.SHIFTALARM_KEYSTORE_BASE64 }}
