@@ -12,68 +12,55 @@ jobs:
   build:
     name: Build Shift Alarm
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Fix and validate AndroidManifest XML
+      - name: Validate AndroidManifest XML
         run: |
           python3 - <<'PY'
-          from pathlib import Path
           import xml.etree.ElementTree as ET
-
-          path = Path("app/src/main/AndroidManifest.xml")
-          raw = path.read_bytes().removeprefix(b'\xef\xbb\xbf').lstrip(b' \t\r\n')
-          ET.fromstring(raw)
-          path.write_bytes(raw)
+          from pathlib import Path
+          ET.parse(Path("app/src/main/AndroidManifest.xml"))
           print("SUCCESS: AndroidManifest XML is valid.")
           PY
-
       - name: Decode release keystore
         env:
-          SHIFTALARM_KEYSTORE_BASE64: ${{ secrets.SHIFTALARM_KEYSTORE_BASE64 }}
+          SHIFTALARM_KEYSTORE_BASE64: \${{ secrets.SHIFTALARM_KEYSTORE_BASE64 }}
         run: |
           test -n "$SHIFTALARM_KEYSTORE_BASE64" || (echo "Missing SHIFTALARM_KEYSTORE_BASE64 secret" && exit 1)
           printf '%s' "$SHIFTALARM_KEYSTORE_BASE64" | base64 --decode > release-key.jks
           test -s release-key.jks || (echo "Decoded keystore is empty" && exit 1)
-
       - name: Build signed Release APK
         env:
-          SHIFTALARM_KEYSTORE_PATH: ${{ github.workspace }}/release-key.jks
-          SHIFTALARM_KEYSTORE_PASSWORD: ${{ secrets.SHIFTALARM_KEYSTORE_PASSWORD }}
-          SHIFTALARM_KEY_ALIAS: ${{ secrets.SHIFTALARM_KEY_ALIAS }}
-          SHIFTALARM_KEY_PASSWORD: ${{ secrets.SHIFTALARM_KEY_PASSWORD }}
+          SHIFTALARM_KEYSTORE_PATH: \${{ github.workspace }}/release-key.jks
+          SHIFTALARM_KEYSTORE_PASSWORD: \${{ secrets.SHIFTALARM_KEYSTORE_PASSWORD }}
+          SHIFTALARM_KEY_ALIAS: \${{ secrets.SHIFTALARM_KEY_ALIAS }}
+          SHIFTALARM_KEY_PASSWORD: \${{ secrets.SHIFTALARM_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --stacktrace
-          cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/Shift-Alarm-v1.2.2.apk
-
+          cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/Shift-Alarm-v1.2.3.apk
       - name: Verify APK package identity and signature
         run: |
-          APK=app/build/outputs/apk/release/Shift-Alarm-v1.2.2.apk
+          APK=app/build/outputs/apk/release/Shift-Alarm-v1.2.3.apk
           BUILD_TOOLS="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
           AAPT="$ANDROID_HOME/build-tools/$BUILD_TOOLS/aapt"
           APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner"
           "$AAPT" dump badging "$APK" | grep -F "package: name='com.shiftalarm.app2'"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
-
       - name: Upload signed Shift Alarm APK
         uses: actions/upload-artifact@v4
         with:
-          name: Shift-Alarm-v1.2.2
-          path: app/build/outputs/apk/release/Shift-Alarm-v1.2.2.apk
+          name: Shift-Alarm-v1.2.3
+          path: app/build/outputs/apk/release/Shift-Alarm-v1.2.3.apk
           if-no-files-found: error
-
       - name: Remove temporary signing key
         if: always()
         run: rm -f release-key.jks
