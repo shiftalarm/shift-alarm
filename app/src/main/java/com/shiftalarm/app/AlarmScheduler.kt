@@ -42,7 +42,7 @@ class AlarmScheduler(context: Context) {
         val now = LocalDateTime.now()
         val reminderTime = start.minusMinutes(ATTENDANCE_REMINDER_MINUTES.toLong())
 
-        if (reminderTime.isAfter(now)) {
+        if (preferences.isAttendanceReminderEnabled() && reminderTime.isAfter(now)) {
             scheduleAlarm(reminderTime, date, shift.code, ATTENDANCE_REMINDER_MINUTES, startTime.toString(), ALARM_TYPE_START)
         }
         if (start.isAfter(now)) {
