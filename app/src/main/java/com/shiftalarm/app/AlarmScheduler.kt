@@ -83,7 +83,7 @@ class AlarmScheduler(context: Context) {
             appContext, requestCode, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+        setAsAlarmClock(triggerMillis, pendingIntent)
     }
 
     fun scheduleSnooze(shiftCode: String, date: LocalDate, alarmType: String, alarmTime: String) {
@@ -102,7 +102,43 @@ class AlarmScheduler(context: Context) {
             appContext, requestCode, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+        setAsAlarmClock(triggerMillis, pendingIntent)
+    }
+
+    /**
+     * Restore an alarm that was already ringing when Android restarted.
+     * The exact restore alarm is delivered through AlarmReceiver, which is
+     * allowed to start the foreground alarm service from an exact alarm.
+     */
+    fun scheduleActiveAlarmRestore(active: AlarmPreferences.ActiveAlarm) {
+        if (!canScheduleExactAlarms()) return
+        val triggerMillis = System.currentTimeMillis() + 2_500L
+        val requestCode = "ACTIVE-RESTORE-${active.date}-${active.shiftCode}".hashCode()
+        val intent = Intent(appContext, AlarmReceiver::class.java).apply {
+            action = ACTION_ALARM
+            putExtra(EXTRA_SHIFT_CODE, active.shiftCode)
+            putExtra(EXTRA_DATE, active.date)
+            putExtra(EXTRA_REMINDER, 0)
+            putExtra(EXTRA_ALARM_TIME, active.alarmTime)
+            putExtra(EXTRA_ALARM_TYPE, active.alarmType)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            appContext, requestCode, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        setAsAlarmClock(triggerMillis, pendingIntent)
+    }
+
+    private fun setAsAlarmClock(triggerMillis: Long, operation: PendingIntent) {
+        val showIntent = PendingIntent.getActivity(
+            appContext, 9917,
+            Intent(appContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager.setAlarmClock(
+            AlarmManager.AlarmClockInfo(triggerMillis, showIntent),
+            operation
+        )
     }
 
     // Routine rescheduling must not erase a pending five-minute snooze.
