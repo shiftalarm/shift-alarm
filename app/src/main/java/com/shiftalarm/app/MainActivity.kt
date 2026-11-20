@@ -338,20 +338,22 @@ class MainActivity : Activity() {
         profile.addView(label("Shift Alarm", 24f, primaryText, true))
         addSpaceTo(profile, 4)
         profile.addView(label("Smart Shift Schedule & Alarm", 13f, secondaryText, false))
+        addSpaceTo(profile, 18)
+
+        profile.addView(label(tr("TAMPILAN", "APPEARANCE"), 11f, accent, true))
+        addSpaceTo(profile, 8)
+        val appearanceGrid = GridLayout(this).apply { columnCount = 2; useDefaultMargins = false }
+        addProfileTile(appearanceGrid, if (darkMode) "☀️" else "🌙",
+            if (darkMode) tr("MODE TERANG", "LIGHT MODE") else tr("MODE GELAP", "DARK MODE"), accent) { toggleAppearanceMode() }
+        addProfileTile(appearanceGrid, "🎨", tr("WARNA TEMA", "THEME COLOR"), Color.rgb(61, 112, 165)) { openThemeSettings() }
+        addProfileTile(appearanceGrid, "🖼️", tr("WALLPAPER", "WALLPAPER"), Color.rgb(91, 105, 132)) { openWallpaperSettings() }
+        profile.addView(appearanceGrid)
         addSpaceTo(profile, 16)
-        profile.addView(label(tr("Tampilan", "Appearance"), 11f, accent, true))
+
+        profile.addView(label(tr("BAHASA", "LANGUAGE"), 11f, accent, true))
         addSpaceTo(profile, 8)
-        profile.addView(actionButton(if (darkMode) tr("GUNAKAN LIGHT MODE", "USE LIGHT MODE") else tr("GUNAKAN DARK MODE", "USE DARK MODE"), accent) {
-            toggleAppearanceMode()
-        })
-        addSpaceTo(profile, 8)
-        profile.addView(actionButton(tr("PILIH WARNA AKSEN", "CHOOSE ACCENT COLOR"), accent) { openThemeSettings() })
-        addSpaceTo(profile, 8)
-        profile.addView(actionButton(tr("PILIH WALLPAPER", "CHOOSE WALLPAPER"), Color.rgb(91, 105, 132)) { openWallpaperSettings() })
-        addSpaceTo(profile, 16)
-        profile.addView(label(tr("Bahasa", "Language"), 11f, accent, true))
-        addSpaceTo(profile, 8)
-        profile.addView(actionButton(if (language == "id") "BAHASA: INDONESIA" else "LANGUAGE: ENGLISH", accent) {
+        val languageGrid = GridLayout(this).apply { columnCount = 2; useDefaultMargins = false }
+        addProfileTile(languageGrid, "🌐", if (language == "id") "INDONESIA" else "ENGLISH", accent) {
             val choices = arrayOf("Bahasa Indonesia", "English")
             android.app.AlertDialog.Builder(this)
                 .setTitle(tr("Pilih Bahasa", "Choose Language"))
@@ -363,18 +365,45 @@ class MainActivity : Activity() {
                 }
                 .setNegativeButton(tr("Batal", "Cancel"), null)
                 .show()
-        })
+        }
+        profile.addView(languageGrid)
         addSpaceTo(profile, 16)
-        profile.addView(label(tr("Alarm & Notifikasi", "Alarm & Notifications"), 11f, accent, true))
+
+        profile.addView(label(tr("ALARM & NOTIFIKASI", "ALARMS & NOTIFICATIONS"), 11f, accent, true))
         addSpaceTo(profile, 8)
-        profile.addView(actionButton(tr("PENGATURAN SUARA ALARM", "ALARM SOUND SETTINGS"), Color.rgb(61, 91, 125)) { openSoundSettings() })
-        addSpaceTo(profile, 8)
-        profile.addView(actionButton(tr("PENGINGAT ABSEN", "ATTENDANCE REMINDER"), Color.rgb(61, 91, 125)) { openAttendanceReminderSettings() })
-        addSpaceTo(profile, 8)
-        profile.addView(actionButton(tr("IZIN ALARM TEPAT", "EXACT ALARM PERMISSION"), Color.rgb(61, 91, 125)) { openExactAlarmSettings() })
+        val alarmGrid = GridLayout(this).apply { columnCount = 2; useDefaultMargins = false }
+        addProfileTile(alarmGrid, "🔊", tr("SUARA ALARM", "ALARM SOUND"), Color.rgb(61, 91, 125)) { openSoundSettings() }
+        addProfileTile(alarmGrid, "🔔", tr("PENGINGAT ABSEN", "ATTENDANCE REMINDER"), Color.rgb(61, 112, 125)) { openAttendanceReminderSettings() }
+        addProfileTile(alarmGrid, "⏰", tr("IZIN ALARM", "ALARM PERMISSION"), Color.rgb(43, 135, 112)) { openExactAlarmSettings() }
+        profile.addView(alarmGrid)
+
         val footer = label("SHIFT ALARM  •  © 2026 mahendradba", 10f, secondaryText, true).apply { gravity = Gravity.CENTER }
         profile.addView(footer, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         content.addView(profile)
+    }
+
+    private fun addProfileTile(grid: GridLayout, symbol: String, title: String, tileColor: Int, action: () -> Unit) {
+        val tile = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(12), dp(8), dp(12))
+            background = rounded(cardColor, 18)
+            elevation = dp(2).toFloat()
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { action() }
+        }
+        tile.addView(label(symbol, 27f, tileColor, true).apply { gravity = Gravity.CENTER })
+        tile.addView(label(title, 11f, primaryText, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(8), 0, 0)
+        })
+        grid.addView(tile, GridLayout.LayoutParams().apply {
+            width = 0
+            height = dp(112)
+            columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+            setMargins(dp(4), dp(4), dp(4), dp(4))
+        })
     }
 
     private fun addBottomNavigation() {
