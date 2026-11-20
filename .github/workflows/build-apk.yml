@@ -3,7 +3,11 @@ name: Build Shift Alarm APK
 on:
   push:
     branches:
-      - feature/complete-shift-alarm\n      - feature/v1.2.0-polish
+      - feature/complete-shift-alarm
+      - feature/v1.2.0-polish
+  pull_request:
+    branches:
+      - feature/complete-shift-alarm
   workflow_dispatch:
 
 permissions:
