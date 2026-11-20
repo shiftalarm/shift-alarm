@@ -87,7 +87,48 @@ class AlarmPreferences(context: Context) {
         prefs.edit().putInt(KEY_RAMP_DURATION, seconds.coerceIn(10, 120)).apply()
     }
 
+    data class ActiveAlarm(
+        val shiftCode: String,
+        val date: String,
+        val alarmTime: String,
+        val alarmType: String
+    )
+
+    fun setActiveAlarm(shiftCode: String, date: String, alarmTime: String, alarmType: String) {
+        prefs.edit()
+            .putBoolean(KEY_ACTIVE_ALARM, true)
+            .putString(KEY_ACTIVE_SHIFT, shiftCode)
+            .putString(KEY_ACTIVE_DATE, date)
+            .putString(KEY_ACTIVE_TIME, alarmTime)
+            .putString(KEY_ACTIVE_TYPE, alarmType)
+            .commit()
+    }
+
+    fun getActiveAlarm(): ActiveAlarm? {
+        if (!prefs.getBoolean(KEY_ACTIVE_ALARM, false)) return null
+        val shift = prefs.getString(KEY_ACTIVE_SHIFT, null) ?: return null
+        val date = prefs.getString(KEY_ACTIVE_DATE, null) ?: return null
+        val time = prefs.getString(KEY_ACTIVE_TIME, null) ?: "00:00"
+        val type = prefs.getString(KEY_ACTIVE_TYPE, null) ?: AlarmScheduler.ALARM_TYPE_START
+        return ActiveAlarm(shift, date, time, type)
+    }
+
+    fun clearActiveAlarm() {
+        prefs.edit()
+            .remove(KEY_ACTIVE_ALARM)
+            .remove(KEY_ACTIVE_SHIFT)
+            .remove(KEY_ACTIVE_DATE)
+            .remove(KEY_ACTIVE_TIME)
+            .remove(KEY_ACTIVE_TYPE)
+            .commit()
+    }
+
     companion object {
+        const val KEY_ACTIVE_ALARM = "active_alarm"
+        const val KEY_ACTIVE_SHIFT = "active_alarm_shift"
+        const val KEY_ACTIVE_DATE = "active_alarm_date"
+        const val KEY_ACTIVE_TIME = "active_alarm_time"
+        const val KEY_ACTIVE_TYPE = "active_alarm_type"
         const val KEY_REMINDER_ENABLED = "attendance_reminder_enabled"
         const val KEY_REMINDER_TEXT = "attendance_reminder_text"
         const val DEFAULT_REMINDER_TEXT = "30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap."
