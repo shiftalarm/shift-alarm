@@ -129,6 +129,8 @@ class MainActivity : Activity() {
         hero.addView(heroActions)
         addSpaceTo(hero, 10)
         hero.addView(actionButton("PENGATURAN SUARA ALARM", Color.rgb(61, 91, 125)) { openSoundSettings() })
+        addSpaceTo(hero, 8)
+        hero.addView(actionButton("PENGATURAN PENGINGAT ABSEN", Color.rgb(61, 91, 125)) { openAttendanceReminderSettings() })
         content.addView(hero)
         addSpace(16)
 
@@ -438,6 +440,55 @@ class MainActivity : Activity() {
             }
             .setNegativeButton("Tutup", null)
             .show()
+    }
+
+    private fun openAttendanceReminderSettings() {
+        val enabled = android.widget.CheckBox(this).apply {
+            text = "Aktifkan pengingat 30 menit sebelum alarm mulai"
+            setTextColor(primaryText)
+            isChecked = alarmPreferences.isAttendanceReminderEnabled()
+        }
+        val messageInput = android.widget.EditText(this).apply {
+            setText(alarmPreferences.getAttendanceReminderText())
+            setTextColor(primaryText)
+            setHintTextColor(secondaryText)
+            hint = "Tulis pesan pengingat"
+            minLines = 2
+            maxLines = 4
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = rounded(if (darkMode) Color.rgb(31, 46, 67) else Color.rgb(235, 240, 247), 10)
+        }
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(4))
+            addView(enabled)
+            addView(label("Pesan notifikasi", 12f, secondaryText, true))
+            addView(messageInput, LinearLayout.LayoutParams(-1, -2))
+        }
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Pengingat Absen")
+            .setView(layout)
+            .setPositiveButton("Simpan", null)
+            .setNeutralButton("Pulihkan Default", null)
+            .setNegativeButton("Batal", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                alarmPreferences.setAttendanceReminderEnabled(enabled.isChecked)
+                alarmPreferences.setAttendanceReminderText(messageInput.text?.toString().orEmpty())
+                if (scheduler.canScheduleExactAlarms()) {
+                    store.getAllShifts().forEach { (date, code) ->
+                        if (!date.isBefore(LocalDate.now())) runCatching { scheduler.scheduleShift(date, code) }
+                    }
+                }
+                Toast.makeText(this, "Pengaturan pengingat disimpan", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                messageInput.setText(AlarmPreferences.DEFAULT_REMINDER_TEXT)
+            }
+        }
+        dialog.show()
     }
 
     private fun previewAlarmTone() {
