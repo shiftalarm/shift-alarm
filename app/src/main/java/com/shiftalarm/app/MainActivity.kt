@@ -129,6 +129,27 @@ class MainActivity : Activity() {
         hero.addView(heroActions)
         addSpaceTo(hero, 10)
         hero.addView(actionButton("PENGATURAN SUARA ALARM", Color.rgb(61, 91, 125)) { openSoundSettings() })
+        addSpaceTo(hero, 12)
+        val reminderSwitch = Switch(this).apply {
+            text = "Notifikasi persiapan 30 menit sebelum dinas"
+            textSize = 13f
+            setTextColor(primaryText)
+            isChecked = alarmPreferences.isAttendanceReminderEnabled()
+            setOnCheckedChangeListener { _, enabled ->
+                alarmPreferences.setAttendanceReminderEnabled(enabled)
+                val code = store.getShift(selectedDate)
+                if (code != null && scheduler.canScheduleExactAlarms()) {
+                    runCatching { scheduler.scheduleShift(selectedDate, code) }
+                        .onFailure { Toast.makeText(this@MainActivity, "Pengaturan tersimpan, tetapi jadwal alarm perlu diperiksa: ${it.message}", Toast.LENGTH_LONG).show() }
+                }
+                Toast.makeText(
+                    this@MainActivity,
+                    if (enabled) "Notifikasi persiapan diaktifkan" else "Notifikasi persiapan dinonaktifkan",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+        hero.addView(reminderSwitch)
         content.addView(hero)
         addSpace(16)
 
