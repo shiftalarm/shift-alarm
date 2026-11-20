@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -30,7 +31,7 @@ class AlarmService : Service() {
         override fun run() {
             val player = mediaPlayer ?: return
             if (!player.isPlaying) return
-            val elapsed = System.currentTimeMillis() - volumeStartedAt
+            val elapsed = SystemClock.elapsedRealtime() - volumeStartedAt
             val fraction = (elapsed.toFloat() / rampDurationMs).coerceIn(0f, 1f)
             val volume = if (gradualVolume) (0.08f + 0.92f * fraction) else 1f
             runCatching { player.setVolume(volume, volume) }
@@ -122,7 +123,7 @@ class AlarmService : Service() {
                     prepare()
                     start()
                 }
-                volumeStartedAt = System.currentTimeMillis()
+                volumeStartedAt = SystemClock.elapsedRealtime()
                 if (gradualVolume) volumeHandler.post(volumeRamp)
             }
         } catch (e: Exception) {
