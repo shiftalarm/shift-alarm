@@ -20,10 +20,12 @@ class AlarmScheduler(context: Context) {
         const val EXTRA_DATE = "shift_date"
         const val EXTRA_REMINDER = "reminder_minutes"
         const val EXTRA_ALARM_TIME = "alarm_time"
+        const val EXTRA_ALARM_TYPE = "alarm_type"
+        const val ALARM_TYPE_START = "START"
+        const val ALARM_TYPE_END = "END"
         const val ATTENDANCE_REMINDER_MINUTES = 30
         val REMINDER_MINUTES = listOf(ATTENDANCE_REMINDER_MINUTES, 0)
         private val LEGACY_REMINDER_MINUTES = listOf(60, 30, 15, 0)
-        private const val SNOOZE_REQUEST_CODE = 99001
     }
 
     fun canScheduleExactAlarms(): Boolean =
@@ -31,44 +33,73 @@ class AlarmScheduler(context: Context) {
 
     fun scheduleShift(date: LocalDate, shiftCode: String) {
         val shift = ShiftDefinitions.find(shiftCode) ?: throw IllegalArgumentException("Kode shift tidak dikenal")
-        // Clear any previously scheduled main/reminder alarms before rebuilding
-        // this date. This also removes stale alarms if the new time has passed.
         cancelShift(date, shift.code)
+
         val alarmTime = AlarmPreferences(appContext).getAlarmTime(date, shift.startTime)
         val start = LocalDateTime.of(date, alarmTime)
         val now = LocalDateTime.now()
         val reminderTime = start.minusMinutes(ATTENDANCE_REMINDER_MINUTES.toLong())
-        if (reminderTime.isAfter(now)) scheduleAlarm(reminderTime, date, shift.code, ATTENDANCE_REMINDER_MINUTES, alarmTime.toString())
-        if (start.isAfter(now)) scheduleAlarm(start, date, shift.code, 0, alarmTime.toString())
+
+        if (reminderTime.isAfter(now)) {
+            scheduleAlarm(reminderTime, date, shift.code, ATTENDANCE_REMINDER_MINUTES, alarmTime.toString(), ALARM_TYPE_START)
+        }
+        if (start.isAfter(now)) {
+            scheduleAlarm(start, date, shift.code, 0, alarmTime.toString(), ALARM_TYPE_START)
+        }
+
+        val endDate = date.plusDays(shift.endDayOffset.toLong())
+        val end = LocalDateTime.of(endDate, shift.endTime)
+        if (end.isAfter(now)) {
+            scheduleAlarm(end, date, shift.code, 0, shift.endTime.toString(), ALARM_TYPE_END)
+        }
     }
 
-    private fun scheduleAlarm(dateTime: LocalDateTime, date: LocalDate, shiftCode: String, reminderMinutes: Int, alarmTime: String) {
+    private fun scheduleAlarm(
+        dateTime: LocalDateTime,
+        date: LocalDate,
+        shiftCode: String,
+        reminderMinutes: Int,
+        alarmTime: String,
+        alarmType: String
+    ) {
         if (!canScheduleExactAlarms()) throw SecurityException("Izin alarm tepat belum diberikan")
         val triggerMillis = dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val requestCode = "$date-$shiftCode-$reminderMinutes".hashCode()
+        val requestCode = when {
+            reminderMinutes > 0 -> "$date-$shiftCode-$reminderMinutes".hashCode()
+            alarmType == ALARM_TYPE_END -> "$date-$shiftCode-END".hashCode()
+            else -> "$date-$shiftCode-0".hashCode()
+        }
         val intent = Intent(appContext, AlarmReceiver::class.java).apply {
             action = ACTION_ALARM
             putExtra(EXTRA_SHIFT_CODE, shiftCode)
             putExtra(EXTRA_DATE, date.toString())
             putExtra(EXTRA_REMINDER, reminderMinutes)
             putExtra(EXTRA_ALARM_TIME, alarmTime)
+            putExtra(EXTRA_ALARM_TYPE, alarmType)
         }
-        val pendingIntent = PendingIntent.getBroadcast(appContext, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val pendingIntent = PendingIntent.getBroadcast(
+            appContext, requestCode, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
     }
 
-    fun scheduleSnooze(shiftCode: String, date: LocalDate) {
+    fun scheduleSnooze(shiftCode: String, date: LocalDate, alarmType: String, alarmTime: String) {
         if (!canScheduleExactAlarms()) throw SecurityException("Izin alarm tepat belum diberikan")
         val triggerMillis = System.currentTimeMillis() + 5 * 60 * 1000L
+        val requestCode = snoozeRequestCode(shiftCode, date, alarmType)
         val intent = Intent(appContext, AlarmReceiver::class.java).apply {
             action = ACTION_SNOOZE
             putExtra(EXTRA_SHIFT_CODE, shiftCode)
             putExtra(EXTRA_DATE, date.toString())
             putExtra(EXTRA_REMINDER, 0)
-            val shift = ShiftDefinitions.find(shiftCode)
-            putExtra(EXTRA_ALARM_TIME, AlarmPreferences(appContext).getAlarmTime(date, shift?.startTime ?: java.time.LocalTime.now()).toString())
+            putExtra(EXTRA_ALARM_TIME, alarmTime)
+            putExtra(EXTRA_ALARM_TYPE, alarmType)
         }
-        val pendingIntent = PendingIntent.getBroadcast(appContext, SNOOZE_REQUEST_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val pendingIntent = PendingIntent.getBroadcast(
+            appContext, requestCode, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
     }
 
@@ -76,14 +107,31 @@ class AlarmScheduler(context: Context) {
         for (minutes in LEGACY_REMINDER_MINUTES) {
             val requestCode = "$date-$shiftCode-$minutes".hashCode()
             val intent = Intent(appContext, AlarmReceiver::class.java).apply { action = ACTION_ALARM }
-            val pendingIntent = PendingIntent.getBroadcast(appContext, requestCode, intent, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
+            val pendingIntent = PendingIntent.getBroadcast(
+                appContext, requestCode, intent,
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            )
             pendingIntent?.let { alarmManager.cancel(it); it.cancel() }
         }
+        val endIntent = Intent(appContext, AlarmReceiver::class.java).apply { action = ACTION_ALARM }
+        val endPending = PendingIntent.getBroadcast(
+            appContext, "$date-$shiftCode-END".hashCode(), endIntent,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+        endPending?.let { alarmManager.cancel(it); it.cancel() }
+        cancelSnooze(shiftCode, date, ALARM_TYPE_START)
+        cancelSnooze(shiftCode, date, ALARM_TYPE_END)
     }
 
-    fun cancelSnooze() {
+    fun cancelSnooze(shiftCode: String, date: LocalDate, alarmType: String) {
         val intent = Intent(appContext, AlarmReceiver::class.java).apply { action = ACTION_SNOOZE }
-        val pendingIntent = PendingIntent.getBroadcast(appContext, SNOOZE_REQUEST_CODE, intent, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
+        val pendingIntent = PendingIntent.getBroadcast(
+            appContext, snoozeRequestCode(shiftCode, date, alarmType), intent,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
         pendingIntent?.let { alarmManager.cancel(it); it.cancel() }
     }
+
+    private fun snoozeRequestCode(shiftCode: String, date: LocalDate, alarmType: String): Int =
+        "$date-$shiftCode-SNOOZE-$alarmType".hashCode()
 }
