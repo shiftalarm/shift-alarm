@@ -66,13 +66,13 @@ class AlarmScreenActivity : Activity() {
         root.addView(text(date.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", if (language == "en") java.util.Locale.ENGLISH else java.util.Locale("id", "ID"))), 14f, muted))
         root.addView(text(if (language == "en") "Alarm is ringing" else "Alarm sedang berbunyi", 14f, cyan, false, 30))
         val snooze = Button(this).apply {
-            text = "SNOOZE\nUlangi 5 menit"; textSize = 17f; isAllCaps = false
+            text = "Snooze"; textSize = 17f; isAllCaps = false
             setTextColor(navy); setBackgroundTintList(android.content.res.ColorStateList.valueOf(cyan))
             setOnClickListener { performAlarmAction(AlarmActionReceiver.ACTION_SNOOZE) }
         }
         root.addView(snooze, LinearLayout.LayoutParams(-1, dp(76)).apply { bottomMargin = dp(14) })
         val stop = Button(this).apply {
-            text = "STOP\nMatikan alarm"; textSize = 17f; isAllCaps = false
+            text = "Stop"; textSize = 17f; isAllCaps = false
             setTextColor(white); setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(43, 57, 78)))
             setOnClickListener { performAlarmAction(AlarmActionReceiver.ACTION_STOP) }
         }
