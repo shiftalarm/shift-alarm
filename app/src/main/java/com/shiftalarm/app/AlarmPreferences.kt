@@ -13,14 +13,14 @@ class AlarmPreferences(context: Context) {
         readTime(startTimeKey(date), defaultTime)
 
     fun setStartAlarmTime(date: LocalDate, time: LocalTime) {
-        prefs.edit().putString(startTimeKey(date), time.toString()).apply()
+        prefs.edit().putString(startTimeKey(date), time.toString()).commit()
     }
 
     fun getEndAlarmTime(date: LocalDate, defaultTime: LocalTime): LocalTime =
         readTime(endTimeKey(date), defaultTime)
 
     fun setEndAlarmTime(date: LocalDate, time: LocalTime) {
-        prefs.edit().putString(endTimeKey(date), time.toString()).apply()
+        prefs.edit().putString(endTimeKey(date), time.toString()).commit()
     }
 
     // Backward-compatible aliases for code paths from version 1.0.1.
@@ -33,7 +33,7 @@ class AlarmPreferences(context: Context) {
         prefs.edit()
             .remove(startTimeKey(date))
             .remove(endTimeKey(date))
-            .apply()
+            .commit()
     }
 
     private fun readTime(key: String, defaultTime: LocalTime): LocalTime {
