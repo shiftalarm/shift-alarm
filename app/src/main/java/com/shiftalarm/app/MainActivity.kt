@@ -8,7 +8,6 @@ import android.media.RingtoneManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -47,7 +46,6 @@ class MainActivity : Activity() {
     private var darkMode = true
     private var accentIndex = 0
     private var wallpaperIndex = 0
-    private var wallpaperUri: Uri? = null
     private var currentTab = "home"
     private var language = "id"
 
@@ -61,7 +59,11 @@ class MainActivity : Activity() {
         Color.rgb(225, 96, 145),  // Rose
         Color.rgb(117, 174, 112), // Sage
         Color.rgb(89, 156, 190),  // Sky
-        Color.rgb(174, 146, 111)  // Sand
+        Color.rgb(174, 146, 111), // Sand
+        Color.rgb(38, 166, 154),  // Teal
+        Color.rgb(220, 74, 91),   // Crimson
+        Color.rgb(126, 145, 166), // Slate
+        Color.rgb(124, 200, 165)  // Mint
     )
 
     private val wallpaperColors = listOf(
@@ -94,7 +96,6 @@ class MainActivity : Activity() {
         darkMode = prefs.getBoolean("dark_mode", true)
         accentIndex = prefs.getInt("accent_index", 0).coerceIn(accents.indices)
         wallpaperIndex = prefs.getInt("wallpaper_index", if (darkMode) 0 else 5).coerceIn(wallpaperColors.indices)
-        wallpaperUri = prefs.getString("wallpaper_uri", null)?.let { runCatching { Uri.parse(it) }.getOrNull() }
         language = prefs.getString("language", "id") ?: "id"
         showPremiumSplash()
         Handler(Looper.getMainLooper()).postDelayed({
@@ -148,9 +149,9 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(10), dp(20), dp(10)); setBackgroundColor(backgroundColor)
         }
         val brandBlock = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
-        brandBlock.addView(label("SHIFT ALARM", 16f, primaryText, true))
-        brandBlock.addView(label("SMART SHIFT SCHEDULE & ALARM", 9f, secondaryText, true))
-        topBar.addView(brandBlock, LinearLayout.LayoutParams(0, dp(46), 1f))
+        brandBlock.addView(label("SHIFT ALARM", 20f, primaryText, true))
+        brandBlock.addView(label("SMART SHIFT SCHEDULE & ALARM", 10f, secondaryText, true))
+        topBar.addView(brandBlock, LinearLayout.LayoutParams(0, dp(52), 1f))
         topBar.addView(actionButton(if (darkMode) "☼" else "☾", accent) { toggleAppearanceMode() }, LinearLayout.LayoutParams(dp(48), dp(42)))
         root.addView(topBar, LinearLayout.LayoutParams(-1, -2))
         val scroll = ScrollView(this).apply { setBackgroundColor(Color.TRANSPARENT); isFillViewport = true; clipToPadding = false }
@@ -167,25 +168,30 @@ class MainActivity : Activity() {
     }
 
     private fun renderDashboard() {
+        content.animate().cancel()
+        content.alpha = 0f
+        content.translationY = dp(7).toFloat()
         content.removeAllViews()
-        content.background = customWallpaperDrawable() ?: android.graphics.drawable.ColorDrawable(backgroundColor)
+        content.background = android.graphics.drawable.ColorDrawable(backgroundColor)
         if (currentTab == "summary") {
             renderSummaryScreen()
             addBottomNavigation()
+            animateContentIn()
             return
         }
         if (currentTab == "profile") {
             renderProfileScreen()
             addBottomNavigation()
+            animateContentIn()
             return
         }
 
         val hero = card()
         hero.addView(label(tr("DASHBOARD", "DASHBOARD"), 11f, accent, true))
         addSpaceTo(hero, 8)
-        hero.addView(label(tr("Atur jadwal, biarkan alarm mengingatkan.", "Set your schedule and let the alarm remind you."), 22f, primaryText, true))
-        addSpaceTo(hero, 8)
-        hero.addView(label(tr("Jadwal tersimpan otomatis mengaktifkan alarm mulai, alarm selesai, dan pengingat absen 30 menit sebelumnya.", "Saved schedules automatically activate start, end, and 30-minute attendance reminders."), 13f, secondaryText, false))
+        hero.addView(label(tr("Atur jadwal, biarkan alarm mengingatkan.", "Set your schedule and let the alarm remind you."), 17f, primaryText, true))
+        addSpaceTo(hero, 7)
+        hero.addView(label(tr("Jadwal tersimpan otomatis mengaktifkan alarm mulai, alarm selesai, dan pengingat absen 30 menit sebelumnya.", "Saved schedules automatically activate start, end, dan 30-minute attendance reminders."), 12f, secondaryText, false))
         content.addView(hero)
         addSpace(16)
 
@@ -282,13 +288,14 @@ class MainActivity : Activity() {
         content.addView(editor)
         refreshStatus()
         addBottomNavigation()
+        animateContentIn()
     }
 
     private fun renderSummaryScreen() {
         val header = card()
         header.addView(label(tr("RINGKASAN JADWAL", "SCHEDULE SUMMARY"), 12f, accent, true))
         addSpaceTo(header, 8)
-        header.addView(label(tr("Rekap seluruh jadwal dinas yang tersimpan.", "Overview of all saved shifts."), 22f, primaryText, true))
+        header.addView(label(tr("Rekap seluruh jadwal dinas yang tersimpan.", "Overview of all saved shifts."), 14f, primaryText, true))
         content.addView(header)
         addSpace(14)
 
@@ -336,49 +343,88 @@ class MainActivity : Activity() {
     }
 
     private fun renderProfileScreen() {
-        val profile = card()
-        profile.setPadding(dp(14), dp(12), dp(14), dp(10))
-        profile.addView(label(tr("PENGATURAN", "SETTINGS"), 11f, accent, true))
-        addSpaceTo(profile, 3)
-        profile.addView(label("SHIFT ALARM", 21f, primaryText, true))
-        profile.addView(label("SMART SHIFT SCHEDULE & ALARM", 9f, secondaryText, true))
-        addSpaceTo(profile, 10)
-        val settingsGrid = GridLayout(this).apply { columnCount = 2; useDefaultMargins = false }
-        addProfileTile(settingsGrid, if (darkMode) "☀" else "☾", if (darkMode) tr("MODE TERANG", "LIGHT MODE") else tr("MODE GELAP", "DARK MODE"), accent) { toggleAppearanceMode() }
-        addProfileTile(settingsGrid, "◈", tr("WARNA TEMA", "THEME COLOR"), Color.rgb(61, 112, 165)) { openThemeSettings() }
-        addProfileTile(settingsGrid, "▧", tr("WALLPAPER", "WALLPAPER"), Color.rgb(91, 105, 132)) { openWallpaperSettings() }
-        addProfileTile(settingsGrid, "文", if (language == "id") "BAHASA" else "LANGUAGE", accent) {
-            val choices = arrayOf("Bahasa Indonesia", "English")
-            android.app.AlertDialog.Builder(this).setTitle(tr("Pilih Bahasa", "Choose Language"))
-                .setSingleChoiceItems(choices, if (language == "id") 0 else 1) { dialog, index ->
-                    language = if (index == 0) "id" else "en"
-                    getSharedPreferences("shift_alarm_appearance", MODE_PRIVATE).edit().putString("language", language).apply()
-                    dialog.dismiss(); renderDashboard()
-                }.setNegativeButton(tr("Batal", "Cancel"), null).show()
+        val heading = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        heading.addView(label(tr("PENGATURAN", "SETTINGS"), 17f, primaryText, true))
+        heading.addView(label(tr("Atur tampilan, bahasa, alarm dan notifikasi.", "Customize appearance, language, alarms and notifications."), 10f, secondaryText, false))
+        content.addView(heading)
+        addSpace(9)
+
+        // 1) Appearance: compact controls, built-in wallpapers only.
+        val appearance = card().apply { setPadding(dp(12), dp(10), dp(12), dp(10)) }
+        appearance.addView(label(tr("TAMPILAN", "APPEARANCE"), 11f, accent, true))
+        addSpaceTo(appearance, 5)
+        val appearanceGrid = GridLayout(this).apply { columnCount = 2; useDefaultMargins = false }
+        addProfileTile(appearanceGrid, if (darkMode) "☀" else "☾",
+            if (darkMode) tr("MODE TERANG", "LIGHT MODE") else tr("MODE GELAP", "DARK MODE"), accent) { toggleAppearanceMode() }
+        addProfileTile(appearanceGrid, "◈", tr("WARNA TEMA", "THEME COLOR"), accent) { openThemeSettings() }
+        addProfileTile(appearanceGrid, "▧", tr("WALLPAPER BAWAAN", "BUILT-IN WALLPAPER"), secondaryText) { openWallpaperSettings() }
+        appearance.addView(appearanceGrid)
+        content.addView(appearance)
+        addSpace(8)
+
+        // 2) Language: one compact row.
+        val languageCard = card().apply { setPadding(dp(12), dp(9), dp(12), dp(9)) }
+        languageCard.addView(label(tr("BAHASA", "LANGUAGE"), 11f, accent, true))
+        addSpaceTo(languageCard, 3)
+        val languageRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        languageRow.addView(label(tr("Bahasa aplikasi", "App language"), 11f, primaryText, false),
+            LinearLayout.LayoutParams(0, -2, 1f))
+        val languageSpinner = Spinner(this)
+        languageSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
+            arrayOf("🇮🇩  Indonesia", "🇬🇧  English"))
+        languageSpinner.setSelection(if (language == "en") 1 else 0)
+        languageSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val next = if (position == 1) "en" else "id"
+                if (next != language) {
+                    language = next
+                    saveAppearance()
+                    renderDashboard()
+                }
+            }
         }
-        addProfileTile(settingsGrid, "♫", tr("SUARA ALARM", "ALARM SOUND"), Color.rgb(61, 91, 125)) { openSoundSettings() }
-        addProfileTile(settingsGrid, "♬", tr("PENGINGAT ABSEN", "ATTENDANCE REMINDER"), Color.rgb(61, 112, 125)) { openAttendanceReminderSettings() }
-        addProfileTile(settingsGrid, "◷", tr("IZIN ALARM", "ALARM PERMISSION"), Color.rgb(43, 135, 112)) { openAlarmPermissions() }
-        profile.addView(settingsGrid)
-        profile.addView(label("VERSI APK  •  Shift Alarm v1.1.1", 10f, secondaryText, true).apply { gravity = Gravity.CENTER },
-            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(9) })
-        profile.addView(label("© 2026 mahendradba", 9f, secondaryText, false).apply { gravity = Gravity.CENTER },
-            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(3) })
-        content.addView(profile)
+        languageRow.addView(languageSpinner, LinearLayout.LayoutParams(dp(150), dp(42)))
+        languageCard.addView(languageRow)
+        content.addView(languageCard)
+        addSpace(8)
+
+        // 3) Alarm and notifications: existing detailed settings remain available.
+        val alarmCard = card().apply { setPadding(dp(12), dp(10), dp(12), dp(10)) }
+        alarmCard.addView(label(tr("ALARM DAN NOTIFIKASI", "ALARMS & NOTIFICATIONS"), 11f, accent, true))
+        addSpaceTo(alarmCard, 5)
+        val alarmGrid = GridLayout(this).apply { columnCount = 2; useDefaultMargins = false }
+        addProfileTile(alarmGrid, "♫", tr("SUARA ALARM", "ALARM SOUND"), accent) { openSoundSettings() }
+        addProfileTile(alarmGrid, "♬", tr("PENGINGAT ABSEN", "ATTENDANCE REMINDER"), Color.rgb(61, 132, 145)) { openAttendanceReminderSettings() }
+        addProfileTile(alarmGrid, "◷", tr("IZIN ALARM", "ALARM PERMISSIONS"), Color.rgb(43, 145, 119)) { openAlarmPermissions() }
+        alarmCard.addView(alarmGrid)
+        content.addView(alarmCard)
+
+        val version = label("VERSI APK  •  Shift Alarm v1.2.0", 9f, secondaryText, true).apply { gravity = Gravity.CENTER }
+        content.addView(version, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(7) })
+        content.addView(label("© 2026 mahendradba", 9f, secondaryText, false).apply { gravity = Gravity.CENTER },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
     }
 
-    private fun addProfileTile(grid: GridLayout, symbol: String, title: String, tileColor: Int, action: () -> Unit) {
+        private fun addProfileTile(grid: GridLayout, symbol: String, title: String, tileColor: Int, action: () -> Unit) {
         val tile = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(10), dp(7), dp(8), dp(7)); background = rounded(cardColor, 12)
-            isClickable = true; isFocusable = true; setOnClickListener { action() }
+            setPadding(dp(9), dp(6), dp(7), dp(6)); background = rounded(cardColor, 12)
+            isClickable = true; isFocusable = true
+            setOnClickListener {
+                animate().scaleX(0.97f).scaleY(0.97f).alpha(0.88f).setDuration(65)
+                    .withEndAction {
+                        animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(115).start()
+                        action()
+                    }.start()
+            }
         }
-        tile.addView(label(symbol, 21f, tileColor, true).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(dp(30), dp(34)))
-        tile.addView(label(title, 10f, primaryText, true).apply { gravity = Gravity.CENTER_VERTICAL },
+        tile.addView(label(symbol, 21f, tileColor, true).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(dp(27), dp(32)))
+        tile.addView(label(title, 9.5f, primaryText, true).apply { gravity = Gravity.CENTER_VERTICAL },
             LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(6) })
         grid.addView(tile, GridLayout.LayoutParams().apply {
-            width = 0; height = dp(58); columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-            setMargins(dp(3), dp(3), dp(3), dp(3))
+            width = 0; height = dp(48); columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+            setMargins(dp(2), dp(2), dp(2), dp(2))
         })
     }
 
@@ -558,7 +604,8 @@ class MainActivity : Activity() {
     private fun openThemeSettings() {
         val names = arrayOf(
             "Ocean Cyan", "Royal Blue", "Emerald", "Violet", "Coral",
-            "Amber", "Rose", "Sage", "Sky", "Sand"
+            "Amber", "Rose", "Sage", "Sky", "Sand",
+            "Teal", "Crimson", "Slate", "Mint"
         )
         val rows = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -593,34 +640,17 @@ class MainActivity : Activity() {
     }
 
     private fun openWallpaperSettings() {
-        val options = arrayOf(tr("Wallpaper bawaan", "Built-in wallpapers"), tr("Pilih foto dari galeri", "Choose photo from gallery"))
-        android.app.AlertDialog.Builder(this).setTitle(tr("Wallpaper", "Wallpaper")).setItems(options) { dialog, index ->
-            if (index == 0) {
-                android.app.AlertDialog.Builder(this).setTitle(tr("Pilih Wallpaper", "Choose Wallpaper"))
-                    .setSingleChoiceItems(wallpaperNames.toTypedArray(), wallpaperIndex) { alert, selected ->
-                        wallpaperIndex = selected; wallpaperUri = null; darkMode = selected < 5
-                        saveAppearance(); alert.dismiss(); buildDashboard()
-                    }.setNegativeButton(tr("Batal", "Cancel"), null).show()
-            } else {
-                val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE); type = "image/*"
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-                }
-                @Suppress("DEPRECATION")
-                startActivityForResult(picker, 2402)
+        android.app.AlertDialog.Builder(this)
+            .setTitle(tr("Pilih Wallpaper Bawaan", "Choose Built-in Wallpaper"))
+            .setSingleChoiceItems(wallpaperNames.toTypedArray(), wallpaperIndex) { dialog, selected ->
+                wallpaperIndex = selected
+                darkMode = selected < 5
+                saveAppearance()
+                dialog.dismiss()
+                renderDashboard()
             }
-            dialog.dismiss()
-        }.setNegativeButton(tr("Tutup", "Close"), null).show()
-    }
-
-    private fun customWallpaperDrawable(): android.graphics.drawable.Drawable? {
-        val uri = wallpaperUri ?: return null
-        return try {
-            val bitmap = contentResolver.openInputStream(uri)?.use {
-                BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = 3 })
-            } ?: return null
-            android.graphics.drawable.BitmapDrawable(resources, bitmap).apply { alpha = 110 }
-        } catch (_: Exception) { null }
+            .setNegativeButton(tr("Tutup", "Close"), null)
+            .show()
     }
 
     private fun openSoundSettings() {
@@ -751,30 +781,21 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Android API")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 2401 && resultCode == RESULT_OK) {
+        if (resultCode != RESULT_OK) return
+        if (requestCode == 2401) {
             @Suppress("DEPRECATION")
             val uri = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
             alarmPreferences.setRingtoneUri(uri)
-            Toast.makeText(this, "Pilihan nada alarm disimpan", Toast.LENGTH_SHORT).show()
-        } else if (requestCode == 2403 && resultCode == RESULT_OK) {
+            Toast.makeText(this, tr("Pilihan nada alarm disimpan", "Alarm tone saved"), Toast.LENGTH_SHORT).show()
+        } else if (requestCode == 2403) {
             @Suppress("DEPRECATION")
             val uri = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
             alarmPreferences.setAttendanceRingtoneUri(uri)
-            Toast.makeText(this, "Nada pengingat absen disimpan", Toast.LENGTH_SHORT).show()
-        } else if (requestCode == 2402 && resultCode == RESULT_OK) {
-            val uri = data?.data ?: return
-            try {
-                val flags = data.flags and (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-                contentResolver.takePersistableUriPermission(uri, flags)
-                wallpaperUri = uri; saveAppearance(); buildDashboard()
-                Toast.makeText(this, "Foto galeri diterapkan sebagai wallpaper", Toast.LENGTH_SHORT).show()
-            } catch (_: Exception) {
-                Toast.makeText(this, "Foto tidak dapat digunakan. Coba pilih foto lain.", Toast.LENGTH_LONG).show()
-            }
+            Toast.makeText(this, tr("Nada pengingat absen disimpan", "Attendance reminder tone saved"), Toast.LENGTH_SHORT).show()
         }
     }
 
-    override fun onPause() { super.onPause() }
+        override fun onPause() { super.onPause() }
     private fun openDatePicker() {
         DatePickerDialog(this, { _, year, month, day ->
             selectedDate = LocalDate.of(year, month + 1, day)
@@ -843,7 +864,6 @@ class MainActivity : Activity() {
             .putBoolean("dark_mode", darkMode)
             .putInt("accent_index", accentIndex)
             .putInt("wallpaper_index", wallpaperIndex)
-            .putString("wallpaper_uri", wallpaperUri?.toString())
             .putString("language", language)
             .apply()
     }
@@ -860,11 +880,18 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun animateContentIn() {
+        content.animate().alpha(1f).translationY(0f)
+            .setDuration(260)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .start()
+    }
+
     private fun card(): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(16), dp(16), dp(16), dp(16))
+        setPadding(dp(15), dp(14), dp(15), dp(14))
         background = rounded(cardColor, 18)
-        elevation = dp(3).toFloat()
+        elevation = dp(4).toFloat()
     }
 
     private fun label(textValue: String, size: Float, color: Int, bold: Boolean): TextView =
@@ -888,7 +915,13 @@ class MainActivity : Activity() {
             minHeight = dp(54)
             isClickable = true
             isFocusable = true
-            setOnClickListener { action() }
+            setOnClickListener {
+                animate().scaleX(0.97f).scaleY(0.97f).alpha(0.9f).setDuration(65)
+                    .withEndAction {
+                        animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(115).start()
+                        action()
+                    }.start()
+            }
         }
 
     private fun rounded(color: Int, radius: Int): GradientDrawable =
