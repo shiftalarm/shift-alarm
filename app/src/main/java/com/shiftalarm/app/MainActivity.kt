@@ -3,6 +3,9 @@ package com.shiftalarm.app
 import android.Manifest
 import android.app.Activity
 import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.media.RingtoneManager
+import android.media.Ringtone
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -25,6 +28,8 @@ class MainActivity : Activity() {
 
     private lateinit var store: ShiftScheduleStore
     private lateinit var scheduler: AlarmScheduler
+    private lateinit var alarmPreferences: AlarmPreferences
+    private var previewRingtone: Ringtone? = null
     private lateinit var content: LinearLayout
     private lateinit var monthLabel: TextView
     private lateinit var calendarGrid: GridLayout
@@ -61,6 +66,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         store = ShiftScheduleStore(this)
         scheduler = AlarmScheduler(this)
+        alarmPreferences = AlarmPreferences(this)
         val prefs = getSharedPreferences("shift_alarm_appearance", MODE_PRIVATE)
         darkMode = prefs.getBoolean("dark_mode", true)
         accentIndex = prefs.getInt("accent_index", 0).coerceIn(accents.indices)
@@ -121,6 +127,8 @@ class MainActivity : Activity() {
             openExactAlarmSettings()
         }, LinearLayout.LayoutParams(0, dp(42), 1f))
         hero.addView(heroActions)
+        addSpaceTo(hero, 10)
+        hero.addView(actionButton("PENGATURAN SUARA ALARM", Color.rgb(61, 91, 125)) { openSoundSettings() })
         content.addView(hero)
         addSpace(16)
 
@@ -179,6 +187,8 @@ class MainActivity : Activity() {
         val selectedIndex = ShiftDefinitions.all.indexOfFirst { it.code == existing }
         if (selectedIndex >= 0) shiftSpinner.setSelection(selectedIndex)
         editor.addView(shiftSpinner, LinearLayout.LayoutParams(-1, dp(48)))
+        addSpaceTo(editor, 8)
+        editor.addView(actionButton("ATUR JAM ALARM", accent) { openAlarmTimePicker() })
         addSpaceTo(editor, 12)
         editor.addView(actionButton("SIMPAN JADWAL", accent) { saveSchedule() })
         addSpaceTo(editor, 8)
@@ -307,6 +317,7 @@ class MainActivity : Activity() {
         }
         scheduler.cancelShift(selectedDate, oldCode)
         store.removeShift(selectedDate)
+        alarmPreferences.clearAlarmTime(selectedDate)
         Toast.makeText(this, "Jadwal berhasil dihapus.", Toast.LENGTH_SHORT).show()
         renderDashboard()
     }
@@ -319,6 +330,71 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun openAlarmTimePicker() {
+        val code = store.getShift(selectedDate) ?: ShiftDefinitions.all.getOrNull(shiftSpinner.selectedItemPosition)?.code ?: return
+        val defaultTime = ShiftDefinitions.find(code)?.startTime ?: java.time.LocalTime.of(6, 0)
+        val current = alarmPreferences.getAlarmTime(selectedDate, defaultTime)
+        TimePickerDialog(this, { _, hour, minute ->
+            alarmPreferences.setAlarmTime(selectedDate, java.time.LocalTime.of(hour, minute))
+            if (store.getShift(selectedDate) != null) runCatching { scheduler.cancelShift(selectedDate, code); scheduler.scheduleShift(selectedDate, code) }
+            Toast.makeText(this, "Jam alarm disimpan", Toast.LENGTH_SHORT).show()
+            renderDashboard()
+        }, current.hour, current.minute, true).show()
+    }
+
+    private fun openSoundSettings() {
+        val options = arrayOf("Pilih nada alarm", "Pratinjau nada", "Mode volume bertahap / langsung", "Durasi hingga maksimal")
+        android.app.AlertDialog.Builder(this).setTitle("Pengaturan Suara Alarm").setItems(options) { _, which ->
+            when (which) {
+                0 -> {
+                    val picker = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Pilih Nada Alarm")
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, alarmPreferences.getRingtoneUri() ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))
+                    }
+                    @Suppress("DEPRECATION")
+                    startActivityForResult(picker, 2401)
+                }
+                1 -> previewAlarmTone()
+                2 -> {
+                    val enabled = !alarmPreferences.isGradualVolume()
+                    alarmPreferences.setGradualVolume(enabled)
+                    Toast.makeText(this, if (enabled) "Volume bertahap aktif" else "Alarm langsung kencang aktif", Toast.LENGTH_SHORT).show()
+                }
+                3 -> {
+                    val labels = arrayOf("10 detik", "20 detik", "30 detik", "45 detik", "60 detik", "90 detik", "120 detik")
+                    val values = intArrayOf(10, 20, 30, 45, 60, 90, 120)
+                    val selected = values.indexOf(alarmPreferences.getRampDurationSeconds()).coerceAtLeast(0)
+                    android.app.AlertDialog.Builder(this).setTitle("Durasi volume bertahap").setSingleChoiceItems(labels, selected) { dialog, index ->
+                        alarmPreferences.setRampDurationSeconds(values[index]); dialog.dismiss()
+                    }.setNegativeButton("Batal", null).show()
+                }
+            }
+        }.setNegativeButton("Tutup", null).show()
+    }
+
+    private fun previewAlarmTone() {
+        try {
+            previewRingtone?.stop()
+            val uri = alarmPreferences.getRingtoneUri() ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            previewRingtone = uri?.let { RingtoneManager.getRingtone(this, it) }
+            previewRingtone?.play()
+        } catch (_: Exception) { Toast.makeText(this, "Nada tidak dapat diputar", Toast.LENGTH_LONG).show() }
+    }
+
+    @Deprecated("Deprecated in Android API")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 2401 && resultCode == RESULT_OK) {
+            val uri = data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            alarmPreferences.setRingtoneUri(uri)
+            Toast.makeText(this, "Pilihan nada alarm disimpan", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onPause() { previewRingtone?.stop(); super.onPause() }
     private fun openDatePicker() {
         DatePickerDialog(this, { _, year, month, day ->
             selectedDate = LocalDate.of(year, month + 1, day)
