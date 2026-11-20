@@ -129,6 +129,8 @@ class MainActivity : Activity() {
         hero.addView(heroActions)
         addSpaceTo(hero, 10)
         hero.addView(actionButton("PENGATURAN SUARA ALARM", Color.rgb(61, 91, 125)) { openSoundSettings() })
+        addSpaceTo(hero, 8)
+        hero.addView(actionButton("PENGATURAN PENGINGAT ABSEN", Color.rgb(61, 91, 125)) { openAttendanceReminderSettings() })
         content.addView(hero)
         addSpace(16)
 
@@ -180,7 +182,24 @@ class MainActivity : Activity() {
         addSpaceTo(editor, 6)
         shiftSpinner = Spinner(this)
         val options = ShiftDefinitions.all.map { "${it.code}   •   ${it.startTime} – ${it.endTime}" }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, options)
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, options) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val item = super.getView(position, convertView, parent) as TextView
+                item.setTextColor(primaryText)
+                item.textSize = 13f
+                item.setPadding(dp(12), dp(8), dp(12), dp(8))
+                return item
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val item = super.getDropDownView(position, convertView, parent) as TextView
+                item.setTextColor(primaryText)
+                item.setTextSize(14f)
+                item.setPadding(dp(14), dp(12), dp(14), dp(12))
+                item.setBackgroundColor(cardColor)
+                return item
+            }
+        }
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         shiftSpinner.adapter = adapter
         val existing = store.getShift(selectedDate)
@@ -188,7 +207,18 @@ class MainActivity : Activity() {
         if (selectedIndex >= 0) shiftSpinner.setSelection(selectedIndex)
         editor.addView(shiftSpinner, LinearLayout.LayoutParams(-1, dp(48)))
         addSpaceTo(editor, 8)
-        editor.addView(actionButton("ATUR JAM ALARM", accent) { openAlarmTimePicker() })
+        editor.addView(label("Pengaturan jam khusus tanggal ini", 11f, secondaryText, true))
+        addSpaceTo(editor, 6)
+        val alarmTimeActions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        alarmTimeActions.addView(actionButton("ATUR JAM MULAI", accent) { openAlarmTimePicker(AlarmScheduler.ALARM_TYPE_START) },
+            LinearLayout.LayoutParams(0, dp(44), 1f))
+        alarmTimeActions.addView(View(this), LinearLayout.LayoutParams(dp(8), 1))
+        alarmTimeActions.addView(actionButton("ATUR JAM PULANG", Color.rgb(61, 91, 125)) { openAlarmTimePicker(AlarmScheduler.ALARM_TYPE_END) },
+            LinearLayout.LayoutParams(0, dp(44), 1f))
+        editor.addView(alarmTimeActions)
         addSpaceTo(editor, 12)
         editor.addView(actionButton("SIMPAN JADWAL", accent) { saveSchedule() })
         addSpaceTo(editor, 8)
@@ -330,16 +360,36 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun openAlarmTimePicker() {
-        val code = store.getShift(selectedDate) ?: ShiftDefinitions.all.getOrNull(shiftSpinner.selectedItemPosition)?.code ?: return
-        val defaultTime = ShiftDefinitions.find(code)?.startTime ?: java.time.LocalTime.of(6, 0)
-        val current = alarmPreferences.getAlarmTime(selectedDate, defaultTime)
+    private fun openAlarmTimePicker(alarmType: String) {
+        val code = ShiftDefinitions.all.getOrNull(shiftSpinner.selectedItemPosition)?.code
+            ?: store.getShift(selectedDate)
+            ?: return
+        val shift = ShiftDefinitions.find(code) ?: return
+        val isStart = alarmType == AlarmScheduler.ALARM_TYPE_START
+        val defaultTime = if (isStart) shift.startTime else shift.endTime
+        val current = if (isStart) {
+            alarmPreferences.getStartAlarmTime(selectedDate, defaultTime)
+        } else {
+            alarmPreferences.getEndAlarmTime(selectedDate, defaultTime)
+        }
+        val title = if (isStart) "Atur Jam Mulai" else "Atur Jam Pulang"
         TimePickerDialog(this, { _, hour, minute ->
-            alarmPreferences.setAlarmTime(selectedDate, java.time.LocalTime.of(hour, minute))
-            if (store.getShift(selectedDate) != null) runCatching { scheduler.cancelShift(selectedDate, code); scheduler.scheduleShift(selectedDate, code) }
-            Toast.makeText(this, "Jam alarm disimpan", Toast.LENGTH_SHORT).show()
+            val selectedTime = java.time.LocalTime.of(hour, minute)
+            if (isStart) alarmPreferences.setStartAlarmTime(selectedDate, selectedTime)
+            else alarmPreferences.setEndAlarmTime(selectedDate, selectedTime)
+
+            val savedCode = store.getShift(selectedDate)
+            if (savedCode != null && scheduler.canScheduleExactAlarms()) {
+                runCatching {
+                    scheduler.cancelShift(selectedDate, savedCode)
+                    scheduler.scheduleShift(selectedDate, savedCode)
+                }.onFailure {
+                    Toast.makeText(this, "Jam tersimpan, tetapi alarm perlu dijadwalkan ulang: ${it.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+            Toast.makeText(this, "$title tanggal ini: ${selectedTime}", Toast.LENGTH_SHORT).show()
             renderDashboard()
-        }, current.hour, current.minute, true).show()
+        }, current.hour, current.minute, true).apply { setTitle(title) }.show()
     }
 
     private fun openSoundSettings() {
@@ -409,13 +459,89 @@ class MainActivity : Activity() {
             .show()
     }
 
+    private fun openAttendanceReminderSettings() {
+        val enabled = android.widget.CheckBox(this).apply {
+            text = "Aktifkan pengingat 30 menit sebelum alarm mulai"
+            setTextColor(primaryText)
+            isChecked = alarmPreferences.isAttendanceReminderEnabled()
+        }
+        val messageInput = android.widget.EditText(this).apply {
+            setText(alarmPreferences.getAttendanceReminderText())
+            setTextColor(primaryText)
+            setHintTextColor(secondaryText)
+            hint = "Tulis pesan pengingat"
+            minLines = 2
+            maxLines = 4
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = rounded(if (darkMode) Color.rgb(31, 46, 67) else Color.rgb(235, 240, 247), 10)
+        }
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(4))
+            addView(enabled)
+            addView(label("Pesan notifikasi", 12f, secondaryText, true))
+            addView(messageInput, LinearLayout.LayoutParams(-1, -2))
+        }
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Pengingat Absen")
+            .setView(layout)
+            .setPositiveButton("Simpan", null)
+            .setNeutralButton("Pulihkan Default", null)
+            .setNegativeButton("Batal", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                alarmPreferences.setAttendanceReminderEnabled(enabled.isChecked)
+                alarmPreferences.setAttendanceReminderText(messageInput.text?.toString().orEmpty())
+                if (scheduler.canScheduleExactAlarms()) {
+                    store.getAllShifts().forEach { (date, code) ->
+                        if (!date.isBefore(LocalDate.now())) runCatching { scheduler.scheduleShift(date, code) }
+                    }
+                }
+                Toast.makeText(this, "Pengaturan pengingat disimpan", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                messageInput.setText(AlarmPreferences.DEFAULT_REMINDER_TEXT)
+            }
+        }
+        dialog.show()
+    }
+
     private fun previewAlarmTone() {
-        try {
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Pratinjau Nada Alarm")
+            .setMessage("Tekan Putar untuk mendengarkan nada yang dipilih. Gunakan Stop untuk menghentikannya.")
+            .setPositiveButton("Putar", null)
+            .setNeutralButton("Stop", null)
+            .setNegativeButton("Tutup") { _, _ ->
+                previewRingtone?.stop()
+                previewRingtone = null
+            }
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                try {
+                    previewRingtone?.stop()
+                    val uri = alarmPreferences.getRingtoneUri()
+                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    previewRingtone = uri?.let { RingtoneManager.getRingtone(this, it) }
+                    if (previewRingtone != null) previewRingtone?.play()
+                    else Toast.makeText(this, "Nada alarm tidak tersedia", Toast.LENGTH_LONG).show()
+                } catch (_: Exception) {
+                    Toast.makeText(this, "Nada tidak dapat diputar", Toast.LENGTH_LONG).show()
+                }
+            }
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                previewRingtone?.stop()
+                previewRingtone = null
+            }
+        }
+        dialog.setOnDismissListener {
             previewRingtone?.stop()
-            val uri = alarmPreferences.getRingtoneUri() ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            previewRingtone = uri?.let { RingtoneManager.getRingtone(this, it) }
-            previewRingtone?.play()
-        } catch (_: Exception) { Toast.makeText(this, "Nada tidak dapat diputar", Toast.LENGTH_LONG).show() }
+            previewRingtone = null
+        }
+        dialog.show()
     }
 
     @Deprecated("Deprecated in Android API")
