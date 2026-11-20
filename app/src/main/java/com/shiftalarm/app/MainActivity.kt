@@ -377,7 +377,7 @@ class MainActivity : Activity() {
             line.addView(label(code,13f,accent,true))
             line.setOnClickListener { selectedDate=date; displayedMonth=YearMonth.from(date); currentTab=0; renderNavigation(); renderTab(0,true) }
             monthCard.addView(line)
-            monthCard.addView(View(this).apply { setBackgroundColor(if(darkMode) Color.rgb(39,54,73) else Color.rgb(230,235,241) }, LinearLayout.LayoutParams(-1,dp(1)))
+            monthCard.addView(View(this).apply { setBackgroundColor(if(darkMode) Color.rgb(39,54,73) else Color.rgb(230,235,241)) }, LinearLayout.LayoutParams(-1,dp(1)))
         }
         parent.addView(monthCard)
         space(parent,12)
