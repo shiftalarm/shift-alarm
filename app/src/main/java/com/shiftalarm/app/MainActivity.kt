@@ -495,6 +495,12 @@ class MainActivity : Activity() {
 
     private fun saveSchedule() {
         val shift=ShiftDefinitions.all.getOrNull(shiftSpinner.selectedItemPosition) ?: return
+        val startDateTime = java.time.LocalDateTime.of(selectedDate, prefs.getAlarmTime(selectedDate, shift.startTime))
+        val endDateTime = java.time.LocalDateTime.of(selectedDate.plusDays(shift.endDayOffset.toLong()), prefs.getEndAlarmTime(selectedDate, shift.endTime))
+        if (!endDateTime.isAfter(startDateTime)) {
+            Toast.makeText(this, tr("Jam pulang harus setelah jam mulai.", "Finish time must be after start time."), Toast.LENGTH_LONG).show()
+            return
+        }
         val old=store.getShift(selectedDate)
         if(old!=null) scheduler.cancelShift(selectedDate,old)
         store.setShift(selectedDate,shift.code)
