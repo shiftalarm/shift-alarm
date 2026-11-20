@@ -20,12 +20,14 @@ class AlarmScreenActivity : Activity() {
     private var date = LocalDate.now()
     private var configuredAlarmTime: LocalTime? = null
     private var alarmKind = AlarmScheduler.KIND_START
+    private var language = "id"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         shiftCode = intent.getStringExtra(AlarmScheduler.EXTRA_SHIFT_CODE) ?: "Shift"
         configuredAlarmTime = intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_TIME)?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
         alarmKind = intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_KIND) ?: AlarmScheduler.KIND_START
+        language = getSharedPreferences("shift_alarm_appearance", MODE_PRIVATE).getString("language", "id") ?: "id"
         date = try { LocalDate.parse(intent.getStringExtra(AlarmScheduler.EXTRA_DATE) ?: "") } catch (_: Exception) { LocalDate.now() }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) { setShowWhenLocked(true); setTurnScreenOn(true) }
         else {
@@ -54,13 +56,15 @@ class AlarmScreenActivity : Activity() {
                 setPadding(0, dp(top), 0, dp(6))
             }
         root.addView(text("SHIFT ALARM", 16f, cyan, true))
-        val title = if (alarmKind == AlarmScheduler.KIND_END) "WAKTUNYA PULANG" else "WAKTUNYA MULAI DINAS"
-        root.addView(text("ALARM AKTIF", 12f, muted, true, 26))
+        val title = if (language == "en") {
+            if (alarmKind == AlarmScheduler.KIND_END) "TIME TO FINISH WORK" else "TIME TO START WORK"
+        } else if (alarmKind == AlarmScheduler.KIND_END) "WAKTUNYA PULANG" else "WAKTUNYA MULAI DINAS"
+        root.addView(text(if (language == "en") "ALARM ACTIVE" else "ALARM AKTIF", 12f, muted, true, 26))
         root.addView(text((configuredAlarmTime ?: ShiftDefinitions.find(shiftCode)?.let { if (alarmKind == AlarmScheduler.KIND_END) it.endTime else it.startTime } ?: LocalTime.now()).format(DateTimeFormatter.ofPattern("HH:mm")), 64f, white))
         root.addView(text(title, 23f, white, true, 18))
         root.addView(text("Shift $shiftCode", 16f, muted))
-        root.addView(text(date.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", java.util.Locale("id", "ID"))), 14f, muted))
-        root.addView(text("Alarm sedang berbunyi", 14f, cyan, false, 30))
+        root.addView(text(date.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", if (language == "en") java.util.Locale.ENGLISH else java.util.Locale("id", "ID"))), 14f, muted))
+        root.addView(text(if (language == "en") "Alarm is ringing" else "Alarm sedang berbunyi", 14f, cyan, false, 30))
         val snooze = Button(this).apply {
             text = "SNOOZE\nUlangi 5 menit"; textSize = 17f; isAllCaps = false
             setTextColor(navy); setBackgroundTintList(android.content.res.ColorStateList.valueOf(cyan))
