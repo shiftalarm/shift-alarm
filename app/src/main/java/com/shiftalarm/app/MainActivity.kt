@@ -182,7 +182,24 @@ class MainActivity : Activity() {
         addSpaceTo(editor, 6)
         shiftSpinner = Spinner(this)
         val options = ShiftDefinitions.all.map { "${it.code}   •   ${it.startTime} – ${it.endTime}" }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, options)
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, options) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val item = super.getView(position, convertView, parent) as TextView
+                item.setTextColor(primaryText)
+                item.textSize = 13f
+                item.setPadding(dp(12), dp(8), dp(12), dp(8))
+                return item
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val item = super.getDropDownView(position, convertView, parent) as TextView
+                item.setTextColor(primaryText)
+                item.setTextSize(14f)
+                item.setPadding(dp(14), dp(12), dp(14), dp(12))
+                item.setBackgroundColor(cardColor)
+                return item
+            }
+        }
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         shiftSpinner.adapter = adapter
         val existing = store.getShift(selectedDate)
