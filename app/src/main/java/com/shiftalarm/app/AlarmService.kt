@@ -60,7 +60,7 @@ class AlarmService : Service() {
         } else startForeground(NOTIFICATION_ID, notification)
         startAlarmSound()
         startVibration()
-        return START_NOT_STICKY
+        return START_REDELIVER_INTENT
     }
 
     private fun createNotificationChannel() {
