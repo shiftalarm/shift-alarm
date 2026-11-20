@@ -1,15 +1,18 @@
-
 package com.shiftalarm.app
 
+import android.app.AlarmManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.app.AlarmManager
+import java.time.LocalDate
 
+/**
+ * Android clears all AlarmManager registrations when the device restarts.
+ * Recreate every future shift alarm after boot/unlock, app replacement,
+ * date/time changes, or exact-alarm permission becoming available.
+ */
 class BootReceiver : BroadcastReceiver() {
-
     override fun onReceive(context: Context, intent: Intent) {
-
         val supportedActions = setOf(
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
@@ -21,23 +24,24 @@ class BootReceiver : BroadcastReceiver() {
         )
         if (intent.action !in supportedActions) return
 
-        val pending = goAsync()
-        Thread {
+        val pendingResult = goAsync()
+        Thread({
             try {
-                val store = ShiftScheduleStore(context)
-                val scheduler = AlarmScheduler(context)
-                if (scheduler.canScheduleExactAlarms()) {
-                    val today = java.time.LocalDate.now()
-                    store.getAllShifts().forEach { (date, code) ->
+                val scheduler = AlarmScheduler(context.applicationContext)
+                if (!scheduler.canScheduleExactAlarms()) return@Thread
+
+                val today = LocalDate.now()
+                ShiftScheduleStore(context.applicationContext)
+                    .getAllShifts()
+                    .forEach { (date, code) ->
                         if (!date.isBefore(today)) {
                             runCatching { scheduler.scheduleShift(date, code) }
                                 .onFailure { it.printStackTrace() }
                         }
                     }
-                }
             } finally {
-                pending.finish()
+                pendingResult.finish()
             }
-        }.start()
+        }, "ShiftAlarm-BootRestore").start()
     }
 }
