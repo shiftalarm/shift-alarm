@@ -31,6 +31,7 @@ class AlarmReceiver : BroadcastReceiver() {
             putExtra(AlarmScheduler.EXTRA_SHIFT_CODE, shiftCode)
             putExtra(AlarmScheduler.EXTRA_DATE, date)
             putExtra(AlarmScheduler.EXTRA_REMINDER, 0)
+            putExtra(AlarmScheduler.EXTRA_ALARM_TIME, intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_TIME))
         }
 
         try {
