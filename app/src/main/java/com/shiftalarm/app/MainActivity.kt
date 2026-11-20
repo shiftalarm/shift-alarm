@@ -374,7 +374,7 @@ class MainActivity : Activity() {
         val alarmGrid = GridLayout(this).apply { columnCount = 2; useDefaultMargins = false }
         addProfileTile(alarmGrid, "🔊", tr("SUARA ALARM", "ALARM SOUND"), Color.rgb(61, 91, 125)) { openSoundSettings() }
         addProfileTile(alarmGrid, "🔔", tr("PENGINGAT ABSEN", "ATTENDANCE REMINDER"), Color.rgb(61, 112, 125)) { openAttendanceReminderSettings() }
-        addProfileTile(alarmGrid, "⏰", tr("IZIN ALARM", "ALARM PERMISSION"), Color.rgb(43, 135, 112)) { openExactAlarmSettings() }
+        addProfileTile(alarmGrid, "⏰", tr("IZIN ALARM", "ALARM PERMISSION"), Color.rgb(43, 135, 112)) { openAlarmPermissions() }
         profile.addView(alarmGrid)
 
         val footer = label("SHIFT ALARM  •  © 2026 mahendradba", 10f, secondaryText, true).apply { gravity = Gravity.CENTER }
@@ -538,10 +538,12 @@ class MainActivity : Activity() {
     }
 
     private fun refreshStatus() {
-        statusText.text = if (scheduler.canScheduleExactAlarms()) {
-            tr("● Izin alarm tepat aktif", "● Exact alarm permission enabled")
-        } else {
-            tr("● Izin alarm tepat belum aktif — tekan tombol IZIN ALARM di atas.", "● Exact alarm permission is off — open Alarm Permission in Profile.")
+        val exactOk = scheduler.canScheduleExactAlarms()
+        val fullScreenOk = canUseFullScreenAlarm()
+        statusText.text = when {
+            !exactOk -> tr("● Izin alarm tepat belum aktif.", "● Exact alarm permission is off.")
+            !fullScreenOk -> tr("● Izin tampilan alarm layar penuh belum aktif.", "● Full-screen alarm permission is off.")
+            else -> tr("● Izin alarm dan layar penuh aktif.", "● Alarm and full-screen permissions enabled.")
         }
     }
 
@@ -814,11 +816,47 @@ class MainActivity : Activity() {
             try {
                 startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName")))
             } catch (_: Exception) {
-                Toast.makeText(this, "Tidak dapat membuka pengaturan alarm.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, tr("Tidak dapat membuka pengaturan alarm.", "Cannot open alarm settings."), Toast.LENGTH_LONG).show()
             }
         } else {
-            Toast.makeText(this, "Perangkat ini mendukung alarm tepat.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, tr("Perangkat ini mendukung alarm tepat.", "Exact alarms are supported on this device."), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun canUseFullScreenAlarm(): Boolean {
+        return if (Build.VERSION.SDK_INT >= 34) {
+            getSystemService(android.app.NotificationManager::class.java).canUseFullScreenIntent()
+        } else true
+    }
+
+    private fun openAlarmPermissions() {
+        val options = arrayOf(
+            tr("Izin alarm tepat", "Exact alarm permission"),
+            tr("Izin tampilan alarm layar penuh", "Full-screen alarm permission"),
+            tr("Izin notifikasi", "Notification permission")
+        )
+        android.app.AlertDialog.Builder(this)
+            .setTitle(tr("Izin Shift Alarm", "Shift Alarm Permissions"))
+            .setItems(options) { _, which ->
+                try {
+                    when (which) {
+                        0 -> openExactAlarmSettings()
+                        1 -> if (Build.VERSION.SDK_INT >= 34) {
+                            startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:$packageName")))
+                        } else openExactAlarmSettings()
+                        2 -> {
+                            val settingsIntent = if (Build.VERSION.SDK_INT >= 26) {
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                            } else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                            startActivity(settingsIntent)
+                        }
+                    }
+                } catch (_: Exception) {
+                    Toast.makeText(this, tr("Tidak dapat membuka pengaturan izin.", "Cannot open permission settings."), Toast.LENGTH_LONG).show()
+                }
+            }
+            .setNegativeButton(tr("Tutup", "Close"), null)
+            .show()
     }
 
     private fun saveAppearance() {
