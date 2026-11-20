@@ -708,6 +708,17 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(8), dp(20), dp(4))
             addView(enabled)
+            addView(actionButton("PILIH NADA PENGINGAT", Color.rgb(61, 112, 125)) {
+                val picker = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Pilih Nada Pengingat Absen")
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, alarmPreferences.getAttendanceRingtoneUri() ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                }
+                @Suppress("DEPRECATION")
+                startActivityForResult(picker, 2403)
+            })
             addView(label("Pesan notifikasi", 12f, secondaryText, true))
             addView(messageInput, LinearLayout.LayoutParams(-1, -2))
         }
@@ -745,6 +756,11 @@ class MainActivity : Activity() {
             val uri = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
             alarmPreferences.setRingtoneUri(uri)
             Toast.makeText(this, "Pilihan nada alarm disimpan", Toast.LENGTH_SHORT).show()
+        } else if (requestCode == 2403 && resultCode == RESULT_OK) {
+            @Suppress("DEPRECATION")
+            val uri = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
+            alarmPreferences.setAttendanceRingtoneUri(uri)
+            Toast.makeText(this, "Nada pengingat absen disimpan", Toast.LENGTH_SHORT).show()
         } else if (requestCode == 2402 && resultCode == RESULT_OK) {
             val uri = data?.data ?: return
             try {
