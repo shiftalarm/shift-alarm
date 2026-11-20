@@ -24,6 +24,7 @@ class AttendanceReminderService : Service() {
     private var player: MediaPlayer? = null
     private var fallbackAttempted = false
     private var notificationDetached = false
+    private var activeShiftCode = "Shift"
 
     companion object {
         private const val TAG = "ShiftAttendanceReminder"
@@ -80,7 +81,7 @@ class AttendanceReminderService : Service() {
     private fun buildNotification(shiftCode: String, ongoing: Boolean): Notification {
         val text = AlarmPreferences(this).getAttendanceReminderText()
         val dismissIntent = Intent(this, AttendanceReminderService::class.java).apply {
-            action = ACTION_DISMISS
+            action = Actions.ACTION_DISMISS
         }
         val dismiss = PendingIntent.getService(
             this, NOTIFICATION_ID, dismissIntent,
@@ -169,10 +170,9 @@ class AttendanceReminderService : Service() {
         // Detach, rather than remove, the foreground notification. Update it
         // to a normal dismissible notification that remains in the shade.
         runCatching {
-            val code = "Shift"
-            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-                .notify(NOTIFICATION_ID, buildNotification(code, ongoing = false))
             stopForeground(STOP_FOREGROUND_DETACH)
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .notify(NOTIFICATION_ID, buildNotification(activeShiftCode, ongoing = false))
             notificationDetached = true
         }.onFailure { Log.e(TAG, "Unable to retain reminder notification", it) }
         stopSelf()
@@ -196,7 +196,11 @@ class AttendanceReminderService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    companion object Actions {
+    private object Actions {
+        const val ACTION_DISMISS = "com.shiftalarm.app.ACTION_DISMISS_ATTENDANCE_REMINDER"
+    }
+
+    companion object {
         const val ACTION_DISMISS = "com.shiftalarm.app.ACTION_DISMISS_ATTENDANCE_REMINDER"
     }
 }
