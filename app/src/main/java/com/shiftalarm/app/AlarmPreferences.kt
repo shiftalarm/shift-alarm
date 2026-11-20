@@ -8,18 +8,41 @@ import java.time.LocalTime
 class AlarmPreferences(context: Context) {
     private val prefs = context.getSharedPreferences("shift_alarm_settings", Context.MODE_PRIVATE)
 
-    fun getAlarmTime(date: LocalDate, defaultTime: LocalTime): LocalTime {
-        val raw = prefs.getString("alarm_time_$date", null) ?: return defaultTime
+    // Keep the original key as the start-time key so existing per-date settings survive updates.
+    fun getStartAlarmTime(date: LocalDate, defaultTime: LocalTime): LocalTime =
+        readTime(startTimeKey(date), defaultTime)
+
+    fun setStartAlarmTime(date: LocalDate, time: LocalTime) {
+        prefs.edit().putString(startTimeKey(date), time.toString()).apply()
+    }
+
+    fun getEndAlarmTime(date: LocalDate, defaultTime: LocalTime): LocalTime =
+        readTime(endTimeKey(date), defaultTime)
+
+    fun setEndAlarmTime(date: LocalDate, time: LocalTime) {
+        prefs.edit().putString(endTimeKey(date), time.toString()).apply()
+    }
+
+    // Backward-compatible aliases for code paths from version 1.0.1.
+    fun getAlarmTime(date: LocalDate, defaultTime: LocalTime): LocalTime =
+        getStartAlarmTime(date, defaultTime)
+
+    fun setAlarmTime(date: LocalDate, time: LocalTime) = setStartAlarmTime(date, time)
+
+    fun clearAlarmTime(date: LocalDate) {
+        prefs.edit()
+            .remove(startTimeKey(date))
+            .remove(endTimeKey(date))
+            .apply()
+    }
+
+    private fun readTime(key: String, defaultTime: LocalTime): LocalTime {
+        val raw = prefs.getString(key, null) ?: return defaultTime
         return runCatching { LocalTime.parse(raw) }.getOrDefault(defaultTime)
     }
 
-    fun setAlarmTime(date: LocalDate, time: LocalTime) {
-        prefs.edit().putString("alarm_time_$date", time.toString()).apply()
-    }
-
-    fun clearAlarmTime(date: LocalDate) {
-        prefs.edit().remove("alarm_time_$date").apply()
-    }
+    private fun startTimeKey(date: LocalDate) = "alarm_time_$date"
+    private fun endTimeKey(date: LocalDate) = "alarm_end_time_$date"
 
     fun getRingtoneUri(): Uri? =
         prefs.getString(KEY_RINGTONE_URI, null)?.let { runCatching { Uri.parse(it) }.getOrNull() }
