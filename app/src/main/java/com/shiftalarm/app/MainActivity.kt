@@ -127,6 +127,17 @@ class MainActivity : Activity() {
     private fun tr(indonesian: String, english: String): String =
         if (language == "en") english else indonesian
 
+    private fun currentLocale(): Locale =
+        if (language == "en") Locale.ENGLISH else Locale("id", "ID")
+
+    private fun toggleAppearanceMode() {
+        darkMode = !darkMode
+        val palette = wallpaperIndex % 5
+        wallpaperIndex = if (darkMode) palette else palette + 5
+        saveAppearance()
+        renderDashboard()
+    }
+
     private fun buildDashboard() {
         val scroll = ScrollView(this).apply {
             setBackgroundColor(backgroundColor)
@@ -164,9 +175,7 @@ class MainActivity : Activity() {
         brand.addView(label("SMART SHIFT SCHEDULE & ALARM", 10f, secondaryText, true))
         header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
         val appearance = actionButton(if (darkMode) "☼" else "☾", accent) {
-            darkMode = !darkMode
-            saveAppearance()
-            renderDashboard()
+            toggleAppearanceMode()
         }
         header.addView(appearance, LinearLayout.LayoutParams(dp(48), dp(44)))
         content.addView(header)
@@ -318,13 +327,20 @@ class MainActivity : Activity() {
 
         val schedules = store.getAllShifts().toSortedMap()
         val summaryCard = card()
-        summaryCard.addView(label("TOTAL JADWAL", 11f, accent, true))
+        summaryCard.addView(label(tr("TOTAL JADWAL", "TOTAL SCHEDULES"), 11f, accent, true))
         addSpaceTo(summaryCard, 6)
-        summaryCard.addView(label(schedules.size.toString() + " tanggal tersimpan", 20f, primaryText, true))
+        summaryCard.addView(label(schedules.size.toString() + if (language == "en") " saved dates" else " tanggal tersimpan", 20f, primaryText, true))
         addSpaceTo(summaryCard, 12)
         if (schedules.isEmpty()) {
-            summaryCard.addView(label("Belum ada jadwal. Tambahkan jadwal melalui halaman Home.", 13f, secondaryText, false))
+            summaryCard.addView(label(tr("Belum ada jadwal. Tambahkan jadwal melalui halaman Home.", "No schedules yet. Add one from the Home page."), 13f, secondaryText, false))
         } else {
+            summaryCard.addView(label(tr("REKAP PER JENIS SHIFT", "SHIFTS BY TYPE"), 10f, secondaryText, true))
+            addSpaceTo(summaryCard, 5)
+            schedules.values.groupingBy { it }.eachCount().toSortedMap().forEach { (code, count) ->
+                summaryCard.addView(label("$code   •   $count " + if (language == "en") "days" else "hari", 13f, primaryText, false))
+            }
+            addSpaceTo(summaryCard, 12)
+            summaryCard.addView(label(tr("DAFTAR JADWAL", "SCHEDULE LIST"), 10f, secondaryText, true))
             schedules.forEach { (date, code) ->
                 val shift = ShiftDefinitions.find(code)
                 val row = LinearLayout(this).apply {
@@ -332,10 +348,16 @@ class MainActivity : Activity() {
                     gravity = Gravity.CENTER_VERTICAL
                     setPadding(0, dp(9), 0, dp(9))
                 }
-                val dateText = label(date.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale("id", "ID"))), 13f, primaryText, true)
+                val dateText = label(date.format(DateTimeFormatter.ofPattern("dd MMM yyyy", currentLocale())), 13f, primaryText, true)
                 row.addView(dateText, LinearLayout.LayoutParams(0, -2, 1f))
                 row.addView(label(code, 13f, accent, true))
                 row.addView(label("   " + (shift?.startTime ?: "--:--") + "–" + (shift?.endTime ?: "--:--"), 11f, secondaryText, false))
+                row.setOnClickListener {
+                    selectedDate = date
+                    displayedMonth = YearMonth.from(date)
+                    currentTab = "home"
+                    renderDashboard()
+                }
                 summaryCard.addView(row)
                 val line = View(this).apply { setBackgroundColor(if (darkMode) Color.rgb(43, 57, 76) else Color.rgb(229, 234, 241)) }
                 summaryCard.addView(line, LinearLayout.LayoutParams(-1, dp(1)))
@@ -360,9 +382,7 @@ class MainActivity : Activity() {
         profile.addView(label(tr("Tampilan", "Appearance"), 11f, accent, true))
         addSpaceTo(profile, 8)
         profile.addView(actionButton(if (darkMode) tr("GUNAKAN LIGHT MODE", "USE LIGHT MODE") else tr("GUNAKAN DARK MODE", "USE DARK MODE"), accent) {
-            darkMode = !darkMode
-            saveAppearance()
-            renderDashboard()
+            toggleAppearanceMode()
         })
         addSpaceTo(profile, 8)
         profile.addView(actionButton(tr("PILIH WARNA AKSEN", "CHOOSE ACCENT COLOR"), accent) { openThemeSettings() })
@@ -427,9 +447,9 @@ class MainActivity : Activity() {
     }
 
     private fun renderCalendar() {
-        monthLabel.text = displayedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale("id", "ID")))
+        monthLabel.text = displayedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", currentLocale()))
         calendarGrid.removeAllViews()
-        val weekdays = listOf("SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN")
+        val weekdays = if (language == "en") listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN") else listOf("SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN")
         weekdays.forEach { day ->
             val tv = label(day, 9f, secondaryText, true).apply { gravity = Gravity.CENTER }
             calendarGrid.addView(tv, GridLayout.LayoutParams().apply {
@@ -613,9 +633,10 @@ class MainActivity : Activity() {
 
     private fun openWallpaperSettings() {
         val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("Pilih Wallpaper")
+            .setTitle(tr("Pilih Wallpaper", "Choose Wallpaper"))
             .setSingleChoiceItems(wallpaperNames.toTypedArray(), wallpaperIndex) { alert, index ->
                 wallpaperIndex = index
+                darkMode = index < 5
                 saveAppearance()
                 alert.dismiss()
                 renderDashboard()
