@@ -105,8 +105,8 @@ class AlarmService : Service() {
             .setPriority(Notification.PRIORITY_MAX)
             .setOngoing(true).setAutoCancel(false).setVisibility(Notification.VISIBILITY_PUBLIC)
             .setFullScreenIntent(fullScreen, true).setContentIntent(fullScreen)
-            .addAction(android.R.drawable.ic_media_pause, "STOP", stop)
-            .addAction(android.R.drawable.ic_media_play, "SNOOZE 5 MENIT", snooze).build()
+            .addAction(android.R.drawable.ic_media_pause, "Stop", stop)
+            .addAction(android.R.drawable.ic_media_play, "Snooze 5 min", snooze).build()
     }
 
     private fun startAlarmSound() {
