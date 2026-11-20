@@ -45,10 +45,16 @@ class MainActivity : Activity() {
     private var accentIndex = 0
 
     private val accents = listOf(
-        Color.rgb(36, 190, 220),
-        Color.rgb(94, 132, 255),
-        Color.rgb(55, 190, 145),
-        Color.rgb(184, 125, 255)
+        Color.rgb(36, 190, 220),   // Ocean
+        Color.rgb(94, 132, 255),  // Royal blue
+        Color.rgb(55, 190, 145),  // Emerald
+        Color.rgb(184, 125, 255), // Violet
+        Color.rgb(244, 132, 95),  // Coral
+        Color.rgb(232, 177, 74),  // Amber
+        Color.rgb(225, 96, 145),  // Rose
+        Color.rgb(117, 174, 112), // Sage
+        Color.rgb(89, 156, 190),  // Sky
+        Color.rgb(174, 146, 111)  // Sand
     )
 
     private val backgroundColor: Int
@@ -117,10 +123,8 @@ class MainActivity : Activity() {
         hero.addView(label("Jadwal tersimpan otomatis menjadi pengingat 30 menit dan alarm utama.", 13f, secondaryText, false))
         addSpaceTo(hero, 14)
         val heroActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        heroActions.addView(actionButton("GANTI AKSEN", accent) {
-            accentIndex = (accentIndex + 1) % accents.size
-            saveAppearance()
-            renderDashboard()
+        heroActions.addView(actionButton("PILIH WARNA TEMA", accent) {
+            openThemeSettings()
         }, LinearLayout.LayoutParams(0, dp(42), 1f))
         heroActions.addView(spaceView(10))
         heroActions.addView(actionButton("IZIN ALARM", if (scheduler.canScheduleExactAlarms()) Color.rgb(43, 166, 124) else Color.rgb(205, 139, 48)) {
@@ -390,6 +394,43 @@ class MainActivity : Activity() {
             Toast.makeText(this, "$title tanggal ini: ${selectedTime}", Toast.LENGTH_SHORT).show()
             renderDashboard()
         }, current.hour, current.minute, true).apply { setTitle(title) }.show()
+    }
+
+    private fun openThemeSettings() {
+        val names = arrayOf(
+            "Ocean Cyan", "Royal Blue", "Emerald", "Violet", "Coral",
+            "Amber", "Rose", "Sage", "Sky", "Sand"
+        )
+        val rows = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(8), dp(18), dp(8))
+        }
+        val choices = accents.indices.map { index ->
+            LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(10), dp(11), dp(10), dp(11))
+                val swatch = View(this@MainActivity).apply {
+                    background = rounded(accents[index], 24)
+                }
+                addView(swatch, LinearLayout.LayoutParams(dp(30), dp(30)))
+                val title = label(names[index], 14f, primaryText, index == accentIndex)
+                val lp = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(14) }
+                addView(title, lp)
+                if (index == accentIndex) addView(label("AKTIF", 10f, accent, true))
+                setOnClickListener {
+                    accentIndex = index
+                    saveAppearance()
+                    renderDashboard()
+                }
+            }
+        }
+        choices.forEach { rows.addView(it) }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Warna Tema")
+            .setView(ScrollView(this).apply { addView(rows) })
+            .setNegativeButton("Tutup", null)
+            .show()
     }
 
     private fun openSoundSettings() {
