@@ -112,25 +112,60 @@ class AlarmService : Service() {
         val selected = prefs.getRingtoneUri()
         val uri = selected ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            ?: return
+
+        val player = MediaPlayer()
+        mediaPlayer = player
         try {
-            if (uri != null) {
-                mediaPlayer = MediaPlayer().apply {
-                    setDataSource(this@AlarmService, uri)
-                    setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
-                    isLooping = true
-                    setVolume(if (gradualVolume) 0.08f else 1f, if (gradualVolume) 0.08f else 1f)
-                    prepare()
-                    start()
+            player.setDataSource(this, uri)
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            player.isLooping = true
+            player.setVolume(
+                if (gradualVolume) 0.08f else 1f,
+                if (gradualVolume) 0.08f else 1f
+            )
+            player.setOnPreparedListener { prepared ->
+                if (mediaPlayer !== prepared) {
+                    runCatching { prepared.release() }
+                    return@setOnPreparedListener
                 }
-                volumeStartedAt = SystemClock.elapsedRealtime()
-                if (gradualVolume) volumeHandler.post(volumeRamp)
+                runCatching {
+                    prepared.start()
+                    volumeStartedAt = SystemClock.elapsedRealtime()
+                    if (gradualVolume) volumeHandler.post(volumeRamp)
+                }.onFailure {
+                    if (mediaPlayer === prepared) mediaPlayer = null
+                    runCatching { prepared.release() }
+                }
             }
+            player.setOnErrorListener { failed, _, _ ->
+                if (mediaPlayer === failed) {
+                    mediaPlayer = null
+                    runCatching { failed.release() }
+                    if (selected != null) {
+                        prefs.setRingtoneUri(null)
+                        startAlarmSound()
+                    }
+                }
+                true
+            }
+            // Prepare off the main thread so loading a ringtone cannot block
+            // the foreground service's main thread.
+            player.prepareAsync()
         } catch (e: Exception) {
+            if (mediaPlayer === player) mediaPlayer = null
+            runCatching { player.release() }
             if (selected != null) {
                 prefs.setRingtoneUri(null)
-                runCatching { startAlarmSound() }
-            } else e.printStackTrace()
+                startAlarmSound()
+            } else {
+                e.printStackTrace()
+            }
         }
     }
 
