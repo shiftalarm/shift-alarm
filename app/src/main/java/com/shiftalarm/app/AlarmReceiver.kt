@@ -48,6 +48,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
     private fun showAttendanceReminder(context: Context, shiftCode: String) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val reminderText = AlarmPreferences(context).getAttendanceReminderText()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -68,10 +69,8 @@ class AlarmReceiver : BroadcastReceiver() {
             Notification.Builder(context).setPriority(Notification.PRIORITY_DEFAULT)
         }.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Persiapan Dinas $shiftCode")
-            .setContentText("30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap.")
-            .setStyle(Notification.BigTextStyle().bigText(
-                "30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap."
-            ))
+            .setContentText(reminderText)
+            .setStyle(Notification.BigTextStyle().bigText(reminderText))
             .setCategory(Notification.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setOngoing(false)
