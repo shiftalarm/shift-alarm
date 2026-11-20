@@ -39,7 +39,7 @@ class MainActivity : Activity() {
     private lateinit var startTimeLabel: TextView
     private lateinit var endTimeLabel: TextView
     private lateinit var shiftSpinner: Spinner
-    private lateinit var statusText: TextView\n    private lateinit var startTimeValue: TextView\n    private lateinit var endTimeValue: TextView
+    private lateinit var statusText: TextView
     private var previewRingtone: Ringtone? = null
     private val previewHandler = Handler(Looper.getMainLooper())
     private val stopPreview = Runnable { stopTonePreview() }
