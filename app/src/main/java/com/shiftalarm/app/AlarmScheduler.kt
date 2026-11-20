@@ -35,22 +35,24 @@ class AlarmScheduler(context: Context) {
         val shift = ShiftDefinitions.find(shiftCode) ?: throw IllegalArgumentException("Kode shift tidak dikenal")
         cancelShift(date, shift.code)
 
-        val alarmTime = AlarmPreferences(appContext).getAlarmTime(date, shift.startTime)
-        val start = LocalDateTime.of(date, alarmTime)
+        val preferences = AlarmPreferences(appContext)
+        val startTime = preferences.getStartAlarmTime(date, shift.startTime)
+        val endTime = preferences.getEndAlarmTime(date, shift.endTime)
+        val start = LocalDateTime.of(date, startTime)
         val now = LocalDateTime.now()
         val reminderTime = start.minusMinutes(ATTENDANCE_REMINDER_MINUTES.toLong())
 
         if (reminderTime.isAfter(now)) {
-            scheduleAlarm(reminderTime, date, shift.code, ATTENDANCE_REMINDER_MINUTES, alarmTime.toString(), ALARM_TYPE_START)
+            scheduleAlarm(reminderTime, date, shift.code, ATTENDANCE_REMINDER_MINUTES, startTime.toString(), ALARM_TYPE_START)
         }
         if (start.isAfter(now)) {
-            scheduleAlarm(start, date, shift.code, 0, alarmTime.toString(), ALARM_TYPE_START)
+            scheduleAlarm(start, date, shift.code, 0, startTime.toString(), ALARM_TYPE_START)
         }
 
         val endDate = date.plusDays(shift.endDayOffset.toLong())
-        val end = LocalDateTime.of(endDate, shift.endTime)
+        val end = LocalDateTime.of(endDate, endTime)
         if (end.isAfter(now)) {
-            scheduleAlarm(end, date, shift.code, 0, shift.endTime.toString(), ALARM_TYPE_END)
+            scheduleAlarm(end, date, shift.code, 0, endTime.toString(), ALARM_TYPE_END)
         }
     }
 
