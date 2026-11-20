@@ -22,16 +22,23 @@ class AlarmActionReceiver : BroadcastReceiver() {
         }
 
         val scheduler = AlarmScheduler(context)
+        val alarmType = intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_TYPE)
+            ?: AlarmScheduler.ALARM_TYPE_START
+        val alarmTime = intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_TIME)
+            ?: ShiftDefinitions.find(shiftCode)?.let {
+                if (alarmType == AlarmScheduler.ALARM_TYPE_END) it.endTime.toString() else it.startTime.toString()
+            } ?: "00:00"
         when (intent.action) {
             ACTION_STOP -> {
-                scheduler.cancelSnooze()
+                scheduler.cancelSnooze(shiftCode, date, AlarmScheduler.ALARM_TYPE_START)
+                scheduler.cancelSnooze(shiftCode, date, AlarmScheduler.ALARM_TYPE_END)
                 context.stopService(Intent(context, AlarmService::class.java))
             }
             ACTION_SNOOZE -> {
-                scheduler.cancelSnooze()
+                scheduler.cancelSnooze(shiftCode, date, alarmType)
                 context.stopService(Intent(context, AlarmService::class.java))
                 try {
-                    scheduler.scheduleSnooze(shiftCode, date)
+                    scheduler.scheduleSnooze(shiftCode, date, alarmType, alarmTime)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
