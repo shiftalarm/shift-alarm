@@ -68,6 +68,13 @@ class AlarmPreferences(context: Context) {
         prefs.edit().putString(KEY_RINGTONE_URI, uri?.toString()).apply()
     }
 
+    fun getAttendanceRingtoneUri(): Uri? =
+        prefs.getString(KEY_ATTENDANCE_RINGTONE_URI, null)?.let { runCatching { Uri.parse(it) }.getOrNull() }
+
+    fun setAttendanceRingtoneUri(uri: Uri?) {
+        prefs.edit().putString(KEY_ATTENDANCE_RINGTONE_URI, uri?.toString()).apply()
+    }
+
     fun isGradualVolume(): Boolean = prefs.getBoolean(KEY_GRADUAL_VOLUME, true)
 
     fun setGradualVolume(enabled: Boolean) {
@@ -85,6 +92,7 @@ class AlarmPreferences(context: Context) {
         const val KEY_REMINDER_TEXT = "attendance_reminder_text"
         const val DEFAULT_REMINDER_TEXT = "30 menit lagi waktunya mulai dinas. Pastikan Anda sudah siap."
         const val KEY_RINGTONE_URI = "alarm_ringtone_uri"
+        const val KEY_ATTENDANCE_RINGTONE_URI = "attendance_ringtone_uri"
         const val KEY_GRADUAL_VOLUME = "gradual_volume"
         const val KEY_RAMP_DURATION = "ramp_duration_seconds"
     }
