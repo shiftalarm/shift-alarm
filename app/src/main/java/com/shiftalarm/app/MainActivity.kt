@@ -47,6 +47,7 @@ class MainActivity : Activity() {
     private var displayedMonth = YearMonth.now()
     private var currentTab = 0
     private var darkMode = true
+    private var customMode = false
     private var accentIndex = 0
     private var customAccent = Color.rgb(36, 190, 220)
     private var language = "id"
@@ -81,6 +82,7 @@ class MainActivity : Activity() {
         prefs = AlarmPreferences(this)
         val appearance = getSharedPreferences("shift_alarm_appearance", MODE_PRIVATE)
         darkMode = appearance.getBoolean("dark_mode", true)
+        customMode = appearance.getString("theme_mode", if (darkMode) "dark" else "light") == "custom"
         accentIndex = appearance.getInt("accent_index", 0).coerceIn(0, accents.size)
         customAccent = appearance.getInt("custom_accent", accents[0])
         language = appearance.getString("language", "id") ?: "id"
@@ -396,9 +398,15 @@ class MainActivity : Activity() {
         space(appearance,10)
         appearance.addView(label(tr("Mode tampilan", "Appearance mode"),11f,secondaryText,true))
         val modes = LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
-        modes.addView(actionButton("LIGHT",if(!darkMode)accent else Color.rgb(80,96,116)){darkMode=false;saveAppearance();renderTab(2,true);renderNavigation()},LinearLayout.LayoutParams(0,dp(42),1f))
-        modes.addView(spaceView(6))
-        modes.addView(actionButton("DARK",if(darkMode)accent else Color.rgb(80,96,116)){darkMode=true;saveAppearance();renderTab(2,true);renderNavigation()},LinearLayout.LayoutParams(0,dp(42),1f))
+        modes.addView(actionButton("LIGHT",if(!darkMode && !customMode)accent else Color.rgb(80,96,116)){darkMode=false;customMode=false;saveAppearance();renderTab(2,true);renderNavigation()},LinearLayout.LayoutParams(0,dp(42),1f))
+        modes.addView(spaceView(5))
+        modes.addView(actionButton("DARK",if(darkMode && !customMode)accent else Color.rgb(80,96,116)){darkMode=true;customMode=false;saveAppearance();renderTab(2,true);renderNavigation()},LinearLayout.LayoutParams(0,dp(42),1f))
+        modes.addView(spaceView(5))
+        modes.addView(actionButton("CUSTOM",if(customMode)accent else Color.rgb(80,96,116)){
+            customMode=true
+            saveAppearance()
+            if(customBackground==null) pickBackgroundImage() else {renderTab(2,true);renderNavigation()}
+        },LinearLayout.LayoutParams(0,dp(42),1f))
         appearance.addView(modes)
         space(appearance,12)
         appearance.addView(label(tr("Warna aksen", "Accent color"),11f,secondaryText,true))
@@ -595,7 +603,7 @@ class MainActivity : Activity() {
 
     private fun saveAppearance() {
         getSharedPreferences("shift_alarm_appearance",MODE_PRIVATE).edit()
-            .putBoolean("dark_mode",darkMode).putInt("accent_index",accentIndex)
+            .putBoolean("dark_mode",darkMode).putString("theme_mode",if(customMode)"custom" else if(darkMode)"dark" else "light").putInt("accent_index",accentIndex)
             .putInt("custom_accent",customAccent).putString("language",language)
             .putString("custom_background",customBackground?.toString()).apply()
         root.setBackgroundColor(backgroundColor)
