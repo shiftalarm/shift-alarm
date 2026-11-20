@@ -91,7 +91,13 @@ class AlarmScreenActivity : Activity() {
         }
         root.addView(status, matchWrap())
 
-        val time = configuredAlarmTime ?: ShiftDefinitions.find(shiftCode)?.startTime ?: LocalTime.now()
+        val shiftDefinition = ShiftDefinitions.find(shiftCode)
+        val fallbackTime = if (alarmType == AlarmScheduler.ALARM_TYPE_END) {
+            shiftDefinition?.endTime
+        } else {
+            shiftDefinition?.startTime
+        }
+        val time = configuredAlarmTime ?: fallbackTime ?: LocalTime.now()
         val clock = TextView(this).apply {
             text = time.format(DateTimeFormatter.ofPattern("HH:mm"))
             textSize = 64f
