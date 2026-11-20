@@ -191,7 +191,7 @@ class MainActivity : Activity() {
         addSpaceTo(hero, 8)
         hero.addView(label(tr("Atur jadwal, biarkan alarm mengingatkan.", "Set your schedule and let the alarm remind you."), 17f, primaryText, true))
         addSpaceTo(hero, 7)
-        hero.addView(label(tr("Jadwal tersimpan otomatis mengaktifkan alarm mulai, alarm selesai, dan pengingat absen 30 menit sebelumnya.", "Saved schedules automatically activate start, end, dan 30-minute attendance reminders."), 12f, secondaryText, false))
+        hero.addView(label(tr("Jadwal tersimpan otomatis mengaktifkan alarm mulai, alarm selesai, dan pengingat absen 30 menit sebelumnya.", "Saved schedules automatically activate start, end, and 30-minute attendance reminders."), 12f, secondaryText, false))
         content.addView(hero)
         addSpace(16)
 
@@ -406,7 +406,7 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
     }
 
-        private fun addProfileTile(grid: GridLayout, symbol: String, title: String, tileColor: Int, action: () -> Unit) {
+    private fun addProfileTile(grid: GridLayout, symbol: String, title: String, tileColor: Int, action: () -> Unit) {
         val tile = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(9), dp(6), dp(7), dp(6)); background = rounded(cardColor, 12)
@@ -611,32 +611,44 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(8), dp(18), dp(8))
         }
-        val choices = accents.indices.map { index ->
-            LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(10), dp(11), dp(10), dp(11))
-                val swatch = View(this@MainActivity).apply {
-                    background = rounded(accents[index], 24)
+        lateinit var dialog: android.app.AlertDialog
+        fun renderChoices() {
+            rows.removeAllViews()
+            accents.indices.forEach { index ->
+                val choice = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(dp(10), dp(9), dp(10), dp(9))
+                    background = rounded(if (index == accentIndex) {
+                        if (darkMode) Color.rgb(30, 48, 68) else Color.rgb(231, 240, 248)
+                    } else Color.TRANSPARENT, 12)
+                    val swatch = View(this@MainActivity).apply {
+                        background = rounded(accents[index], 24)
+                        elevation = dp(2).toFloat()
+                    }
+                    addView(swatch, LinearLayout.LayoutParams(dp(30), dp(30)))
+                    addView(label(names[index], 13f, primaryText, index == accentIndex),
+                        LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(14) })
+                    if (index == accentIndex) {
+                        addView(label("✓  AKTIF", 10f, accents[index], true))
+                    }
+                    setOnClickListener {
+                        accentIndex = index
+                        saveAppearance()
+                        buildDashboard()
+                        renderChoices()
+                    }
                 }
-                addView(swatch, LinearLayout.LayoutParams(dp(30), dp(30)))
-                val title = label(names[index], 14f, primaryText, index == accentIndex)
-                val lp = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(14) }
-                addView(title, lp)
-                if (index == accentIndex) addView(label("AKTIF", 10f, accent, true))
-                setOnClickListener {
-                    accentIndex = index
-                    saveAppearance()
-                    buildDashboard()
-                }
+                rows.addView(choice)
             }
         }
-        choices.forEach { rows.addView(it) }
-        android.app.AlertDialog.Builder(this)
+        renderChoices()
+        dialog = android.app.AlertDialog.Builder(this)
             .setTitle("Warna Tema")
             .setView(ScrollView(this).apply { addView(rows) })
             .setNegativeButton("Tutup", null)
-            .show()
+            .create()
+        dialog.show()
     }
 
     private fun openWallpaperSettings() {
@@ -795,7 +807,7 @@ class MainActivity : Activity() {
         }
     }
 
-        override fun onPause() { super.onPause() }
+    override fun onPause() { super.onPause() }
     private fun openDatePicker() {
         DatePickerDialog(this, { _, year, month, day ->
             selectedDate = LocalDate.of(year, month + 1, day)
