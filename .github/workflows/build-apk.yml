@@ -44,7 +44,7 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/shiftalarm-release.jks"
           test -s "$RUNNER_TEMP/shiftalarm-release.jks"
 
-      - name: Build signed Release APK
+      - name: Build signed Release APK (retry transient repository errors)
         env:
           SHIFTALARM_KEYSTORE_PATH: ${{ runner.temp }}/shiftalarm-release.jks
           SHIFTALARM_KEYSTORE_PASSWORD: ${{ secrets.SHIFTALARM_KEYSTORE_PASSWORD }}
@@ -52,7 +52,18 @@ jobs:
           SHIFTALARM_KEY_PASSWORD: ${{ secrets.SHIFTALARM_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace
+          for attempt in 1 2 3; do
+            echo "Release build attempt $attempt of 3"
+            if ./gradlew assembleRelease --no-daemon --stacktrace; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Build failed; waiting 25 seconds before retry."
+              sleep 25
+            fi
+          done
+          echo "Release build failed after 3 attempts."
+          exit 1
 
       - name: Rename APK with version
         run: |
