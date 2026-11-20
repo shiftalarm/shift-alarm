@@ -346,7 +346,7 @@ class MainActivity : Activity() {
         }
         box.addView(label(title, 10f, secondaryText, true))
         val valueLabel = label(time, 23f, accent, true)
-        if (title == tr("JAM MULAI", "START TIME")) startTimeValue = valueLabel else endTimeValue = valueLabel
+        if (title == tr("JAM MULAI", "START TIME")) startTimeLabel = valueLabel else endTimeLabel = valueLabel
         box.addView(valueLabel)
         box.addView(label(tr("Ketuk untuk ubah", "Tap to edit"), 9f, secondaryText, false))
         return box
