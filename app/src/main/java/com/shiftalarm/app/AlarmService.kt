@@ -74,11 +74,13 @@ class AlarmService : Service() {
         }
     }
 
-    private fun createActionPendingIntent(action: String, shiftCode: String, date: String, requestCode: Int): PendingIntent {
+    private fun createActionPendingIntent(action: String, shiftCode: String, date: String, alarmType: String, alarmTime: String?, requestCode: Int): PendingIntent {
         val intent = Intent(this, AlarmActionReceiver::class.java).apply {
             this.action = action
             putExtra(AlarmScheduler.EXTRA_SHIFT_CODE, shiftCode)
             putExtra(AlarmScheduler.EXTRA_DATE, date)
+            putExtra(AlarmScheduler.EXTRA_ALARM_TYPE, alarmType)
+            putExtra(AlarmScheduler.EXTRA_ALARM_TIME, alarmTime)
         }
         return PendingIntent.getBroadcast(this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
@@ -92,8 +94,8 @@ class AlarmService : Service() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         val fullScreen = PendingIntent.getActivity(this, 10000, screenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val stop = createActionPendingIntent(AlarmActionReceiver.ACTION_STOP, shiftCode, date, 10001)
-        val snooze = createActionPendingIntent(AlarmActionReceiver.ACTION_SNOOZE, shiftCode, date, 10002)
+        val stop = createActionPendingIntent(AlarmActionReceiver.ACTION_STOP, shiftCode, date, alarmType, alarmTime, 10001)
+        val snooze = createActionPendingIntent(AlarmActionReceiver.ACTION_SNOOZE, shiftCode, date, alarmType, alarmTime, 10002)
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("SHIFT ALARM")
