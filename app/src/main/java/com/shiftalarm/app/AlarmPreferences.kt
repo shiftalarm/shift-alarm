@@ -8,8 +8,18 @@ import java.time.LocalTime
 class AlarmPreferences(context: Context) {
     private val prefs = context.getSharedPreferences("shift_alarm_settings", Context.MODE_PRIVATE)
 
-    fun getAlarmTime(date: LocalDate, defaultTime: LocalTime): LocalTime =
-        getTime("alarm_start_time_$date", defaultTime)
+    fun getAlarmTime(date: LocalDate, defaultTime: LocalTime): LocalTime {
+        val migrated = prefs.getString("alarm_start_time_$date", null)
+        if (migrated != null) return runCatching { LocalTime.parse(migrated) }.getOrDefault(defaultTime)
+        // Preserve custom start times created by v1.1.0.
+        val legacy = prefs.getString("alarm_time_$date", null)
+        if (legacy != null) {
+            val parsed = runCatching { LocalTime.parse(legacy) }.getOrDefault(defaultTime)
+            prefs.edit().putString("alarm_start_time_$date", parsed.toString()).apply()
+            return parsed
+        }
+        return defaultTime
+    }
 
     fun setAlarmTime(date: LocalDate, time: LocalTime) =
         prefs.edit().putString("alarm_start_time_$date", time.toString()).apply()
