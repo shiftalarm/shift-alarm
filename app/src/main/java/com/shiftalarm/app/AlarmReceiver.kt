@@ -73,7 +73,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 description = "Pengingat persiapan dinas 30 menit sebelum alarm utama"
                 setShowBadge(false)
                 enableVibration(true)
-                setSound(soundUri, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build())
+                setSound(soundUri, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())
             }
             manager.createNotificationChannel(channel)
         }
@@ -88,7 +88,7 @@ class AlarmReceiver : BroadcastReceiver() {
             .setContentText(reminderText)
             .setStyle(Notification.BigTextStyle().bigText(reminderText))
             .setCategory(Notification.CATEGORY_REMINDER)
-            .setAutoCancel(true)
+            .setAutoCancel(false)
             .setOngoing(false)
             .build()
 
