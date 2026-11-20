@@ -27,12 +27,13 @@ class AlarmService : Service() {
     private var volumeStartedAt = 0L
     private var rampDurationMs = 30_000L
     private var gradualVolume = true
+    private var activeKind = AlarmScheduler.KIND_START
+    private var activeAlarmTime: String? = null
     private val volumeRamp = object : Runnable {
         override fun run() {
             val player = mediaPlayer ?: return
             if (!player.isPlaying) return
-            val elapsed = SystemClock.elapsedRealtime() - volumeStartedAt
-            val fraction = (elapsed.toFloat() / rampDurationMs).coerceIn(0f, 1f)
+            val fraction = ((SystemClock.elapsedRealtime() - volumeStartedAt).toFloat() / rampDurationMs).coerceIn(0f, 1f)
             val volume = if (gradualVolume) (0.08f + 0.92f * fraction) else 1f
             runCatching { player.setVolume(volume, volume) }
             if (gradualVolume && fraction < 1f) volumeHandler.postDelayed(this, 500L)
@@ -44,19 +45,16 @@ class AlarmService : Service() {
         const val NOTIFICATION_ID = 1001
     }
 
-    override fun onCreate() {
-        super.onCreate()
-        createNotificationChannel()
-    }
+    override fun onCreate() { super.onCreate(); createNotificationChannel() }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val shiftCode = intent?.getStringExtra(AlarmScheduler.EXTRA_SHIFT_CODE) ?: "Shift"
         val date = intent?.getStringExtra(AlarmScheduler.EXTRA_DATE) ?: ""
-        val alarmTime = intent?.getStringExtra(AlarmScheduler.EXTRA_ALARM_TIME)
-        val notification = buildNotification(shiftCode, date, alarmTime)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-        } else startForeground(NOTIFICATION_ID, notification)
+        activeAlarmTime = intent?.getStringExtra(AlarmScheduler.EXTRA_ALARM_TIME)
+        activeKind = intent?.getStringExtra(AlarmScheduler.EXTRA_ALARM_KIND) ?: AlarmScheduler.KIND_START
+        val notification = buildNotification(shiftCode, date, activeAlarmTime, activeKind)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        else startForeground(NOTIFICATION_ID, notification)
         startAlarmSound()
         startVibration()
         return START_NOT_STICKY
@@ -65,7 +63,7 @@ class AlarmService : Service() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(CHANNEL_ID, "Alarm Utama Shift Alarm", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Alarm utama jadwal dinas"
+                description = "Alarm mulai dan pulang kerja"
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 setBypassDnd(true)
             }
@@ -78,24 +76,28 @@ class AlarmService : Service() {
             this.action = action
             putExtra(AlarmScheduler.EXTRA_SHIFT_CODE, shiftCode)
             putExtra(AlarmScheduler.EXTRA_DATE, date)
+            putExtra(AlarmActionReceiver.EXTRA_ACTION_ALARM_KIND, activeKind)
+            putExtra(AlarmActionReceiver.EXTRA_ACTION_ALARM_TIME, activeAlarmTime)
         }
         return PendingIntent.getBroadcast(this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    private fun buildNotification(shiftCode: String, date: String, alarmTime: String?): Notification {
+    private fun buildNotification(shiftCode: String, date: String, alarmTime: String?, kind: String): Notification {
         val screenIntent = Intent(this, AlarmScreenActivity::class.java).apply {
             putExtra(AlarmScheduler.EXTRA_SHIFT_CODE, shiftCode)
             putExtra(AlarmScheduler.EXTRA_DATE, date)
             putExtra(AlarmScheduler.EXTRA_ALARM_TIME, alarmTime)
+            putExtra(AlarmScheduler.EXTRA_ALARM_KIND, kind)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         val fullScreen = PendingIntent.getActivity(this, 10000, screenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val stop = createActionPendingIntent(AlarmActionReceiver.ACTION_STOP, shiftCode, date, 10001)
         val snooze = createActionPendingIntent(AlarmActionReceiver.ACTION_SNOOZE, shiftCode, date, 10002)
+        val label = if (kind == AlarmScheduler.KIND_END) "Waktunya pulang kerja $shiftCode" else "Waktunya mulai dinas $shiftCode"
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("SHIFT ALARM")
-            .setContentText("Waktunya dinas $shiftCode")
+            .setContentText(label)
             .setCategory(Notification.CATEGORY_ALARM)
             .setPriority(Notification.PRIORITY_MAX)
             .setOngoing(true).setAutoCancel(false).setVisibility(Notification.VISIBILITY_PUBLIC)
@@ -111,86 +113,50 @@ class AlarmService : Service() {
         rampDurationMs = prefs.getRampDurationSeconds() * 1000L
         val selected = prefs.getRingtoneUri()
         val uri = selected ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            ?: return
-
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION) ?: return
         val player = MediaPlayer()
         mediaPlayer = player
         try {
             player.setDataSource(this, uri)
-            player.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-            )
+            player.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
             player.isLooping = true
-            player.setVolume(
-                if (gradualVolume) 0.08f else 1f,
-                if (gradualVolume) 0.08f else 1f
-            )
+            player.setVolume(if (gradualVolume) 0.08f else 1f, if (gradualVolume) 0.08f else 1f)
             player.setOnPreparedListener { prepared ->
-                if (mediaPlayer !== prepared) {
-                    runCatching { prepared.release() }
-                    return@setOnPreparedListener
-                }
+                if (mediaPlayer !== prepared) { runCatching { prepared.release() }; return@setOnPreparedListener }
                 runCatching {
                     prepared.start()
                     volumeStartedAt = SystemClock.elapsedRealtime()
                     if (gradualVolume) volumeHandler.post(volumeRamp)
-                }.onFailure {
-                    if (mediaPlayer === prepared) mediaPlayer = null
-                    runCatching { prepared.release() }
-                }
+                }.onFailure { if (mediaPlayer === prepared) mediaPlayer = null; runCatching { prepared.release() } }
             }
             player.setOnErrorListener { failed, _, _ ->
                 if (mediaPlayer === failed) {
-                    mediaPlayer = null
-                    runCatching { failed.release() }
-                    if (selected != null) {
-                        prefs.setRingtoneUri(null)
-                        startAlarmSound()
-                    }
+                    mediaPlayer = null; runCatching { failed.release() }
+                    if (selected != null) { prefs.setRingtoneUri(null); startAlarmSound() }
                 }
                 true
             }
-            // Prepare off the main thread so loading a ringtone cannot block
-            // the foreground service's main thread.
             player.prepareAsync()
         } catch (e: Exception) {
             if (mediaPlayer === player) mediaPlayer = null
             runCatching { player.release() }
-            if (selected != null) {
-                prefs.setRingtoneUri(null)
-                startAlarmSound()
-            } else {
-                e.printStackTrace()
-            }
+            if (selected != null) { prefs.setRingtoneUri(null); startAlarmSound() } else e.printStackTrace()
         }
     }
 
     private fun startVibration() {
-        vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-        }
+        vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+        else { @Suppress("DEPRECATION") (getSystemService(Context.VIBRATOR_SERVICE) as Vibrator) }
         if (vibrator?.hasVibrator() == true) {
             val pattern = longArrayOf(0, 800, 500, 800, 500)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
-            else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(pattern, 0)
-            }
+            else { @Suppress("DEPRECATION") vibrator?.vibrate(pattern, 0) }
         }
     }
 
     private fun stopAlarmSound() {
         volumeHandler.removeCallbacks(volumeRamp)
-        mediaPlayer?.let { player ->
-            try { if (player.isPlaying) player.stop(); player.release() } catch (_: Exception) {}
-        }
+        mediaPlayer?.let { player -> try { if (player.isPlaying) player.stop(); player.release() } catch (_: Exception) {} }
         mediaPlayer = null
     }
 
