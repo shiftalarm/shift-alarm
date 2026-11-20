@@ -21,12 +21,14 @@ class AlarmScreenActivity : Activity() {
     private var shiftCode: String = "Shift"
     private var date: LocalDate = LocalDate.now()
     private var configuredAlarmTime: LocalTime? = null
+    private var alarmType: String = AlarmScheduler.ALARM_TYPE_START
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         shiftCode = intent.getStringExtra(AlarmScheduler.EXTRA_SHIFT_CODE) ?: "Shift"
         configuredAlarmTime = intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_TIME)?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
+        alarmType = intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_TYPE) ?: AlarmScheduler.ALARM_TYPE_START
         date = try {
             LocalDate.parse(intent.getStringExtra(AlarmScheduler.EXTRA_DATE) ?: "")
         } catch (_: Exception) {
@@ -80,7 +82,7 @@ class AlarmScreenActivity : Activity() {
         root.addView(brand, matchWrap())
 
         val status = TextView(this).apply {
-            text = "ALARM AKTIF"
+            text = if (alarmType == AlarmScheduler.ALARM_TYPE_END) "ALARM PULANG AKTIF" else "ALARM MULAI DINAS AKTIF"
             textSize = 12f
             letterSpacing = 0.16f
             setTextColor(muted)
@@ -100,7 +102,7 @@ class AlarmScreenActivity : Activity() {
         root.addView(clock, matchWrap())
 
         val shiftTitle = TextView(this).apply {
-            text = "Waktunya Dinas $shiftCode"
+            text = if (alarmType == AlarmScheduler.ALARM_TYPE_END) "Waktunya Pulang Dinas $shiftCode" else "Waktunya Mulai Dinas $shiftCode"
             textSize = 25f
             setTextColor(white)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
@@ -118,7 +120,7 @@ class AlarmScreenActivity : Activity() {
         root.addView(dateLabel, matchWrap())
 
         val ringing = TextView(this).apply {
-            text = "Alarm sedang berbunyi"
+            text = if (alarmType == AlarmScheduler.ALARM_TYPE_END) "Waktunya selesai bertugas" else "Alarm sedang berbunyi"
             textSize = 14f
             setTextColor(cyan)
             gravity = Gravity.CENTER
@@ -158,6 +160,8 @@ class AlarmScreenActivity : Activity() {
             this.action = action
             putExtra(AlarmScheduler.EXTRA_SHIFT_CODE, shiftCode)
             putExtra(AlarmScheduler.EXTRA_DATE, date.toString())
+            putExtra(AlarmScheduler.EXTRA_ALARM_TYPE, alarmType)
+            putExtra(AlarmScheduler.EXTRA_ALARM_TIME, configuredAlarmTime?.toString())
         }
         sendBroadcast(actionIntent)
         finish()
