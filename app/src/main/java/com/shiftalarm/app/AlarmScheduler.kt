@@ -33,7 +33,7 @@ class AlarmScheduler(context: Context) {
 
     fun scheduleShift(date: LocalDate, shiftCode: String) {
         val shift = ShiftDefinitions.find(shiftCode) ?: throw IllegalArgumentException("Kode shift tidak dikenal")
-        cancelShift(date, shift.code)
+        cancelScheduledAlarms(date, shift.code)
 
         val preferences = AlarmPreferences(appContext)
         val startTime = preferences.getStartAlarmTime(date, shift.startTime)
@@ -105,7 +105,8 @@ class AlarmScheduler(context: Context) {
         alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
     }
 
-    fun cancelShift(date: LocalDate, shiftCode: String) {
+    // Routine rescheduling must not erase a pending five-minute snooze.
+    fun cancelScheduledAlarms(date: LocalDate, shiftCode: String) {
         for (minutes in LEGACY_REMINDER_MINUTES) {
             val requestCode = "$date-$shiftCode-$minutes".hashCode()
             val intent = Intent(appContext, AlarmReceiver::class.java).apply { action = ACTION_ALARM }
@@ -121,6 +122,11 @@ class AlarmScheduler(context: Context) {
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )
         endPending?.let { alarmManager.cancel(it); it.cancel() }
+    }
+
+    // Explicitly cancel snoozes only when the user replaces or deletes a shift.
+    fun cancelShift(date: LocalDate, shiftCode: String) {
+        cancelScheduledAlarms(date, shiftCode)
         cancelSnooze(shiftCode, date, ALARM_TYPE_START)
         cancelSnooze(shiftCode, date, ALARM_TYPE_END)
     }
