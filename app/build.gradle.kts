@@ -12,13 +12,12 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        // Keep the application ID identical to the installed release (run #42)
-        // so Android upgrades the existing app instead of creating a different package.
+        // Preserve the installed release identity so this build upgrades it.
         applicationId = "com.shiftalarm.app2"
         minSdk = 30
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.2.2"
+        versionCode = 10
+        versionName = "1.2.3"
     }
 
     signingConfigs {
