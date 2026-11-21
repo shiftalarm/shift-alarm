@@ -1,6 +1,12 @@
 name: Build Shift Alarm APK
 
 on:
+  push:
+    branches:
+      - 'fix/v1.2.3-reboot-from-1.2.2'
+    paths:
+      - 'app/**'
+      - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 
 permissions:
@@ -8,7 +14,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Shift Alarm
+    name: Build signed Shift Alarm 1.2.3
     runs-on: ubuntu-latest
 
     steps:
@@ -24,18 +30,11 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Fix and validate AndroidManifest XML
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import xml.etree.ElementTree as ET
+      - name: Validate AndroidManifest XML
+        run: python3 -c "import xml.etree.ElementTree as ET; ET.parse('app/src/main/AndroidManifest.xml'); print('Manifest XML valid')"
 
-          path = Path("app/src/main/AndroidManifest.xml")
-          raw = path.read_bytes().removeprefix(b'\xef\xbb\xbf').lstrip(b' \t\r\n')
-          ET.fromstring(raw)
-          path.write_bytes(raw)
-          print("SUCCESS: AndroidManifest XML is valid.")
-          PY
+      - name: Validate reboot recovery wiring
+        run: python3 scripts/validate_reboot_recovery.py
 
       - name: Decode release keystore
         env:
@@ -54,22 +53,22 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --stacktrace
-          cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/Shift-Alarm-v1.2.2.apk
+          cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/Shift-Alarm-v1.2.3.apk
 
-      - name: Verify APK package identity and signature
+      - name: Verify APK package, version, and signature
         run: |
-          APK=app/build/outputs/apk/release/Shift-Alarm-v1.2.2.apk
+          APK=app/build/outputs/apk/release/Shift-Alarm-v1.2.3.apk
           BUILD_TOOLS="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
           AAPT="$ANDROID_HOME/build-tools/$BUILD_TOOLS/aapt"
           APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner"
-          "$AAPT" dump badging "$APK" | grep -F "package: name='com.shiftalarm.app2'"
+          "$AAPT" dump badging "$APK" | grep -F "package: name='com.shiftalarm.app2' versionCode='10' versionName='1.2.3'"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
 
       - name: Upload signed Shift Alarm APK
         uses: actions/upload-artifact@v4
         with:
-          name: Shift-Alarm-v1.2.2
-          path: app/build/outputs/apk/release/Shift-Alarm-v1.2.2.apk
+          name: Shift-Alarm-v1.2.3
+          path: app/build/outputs/apk/release/Shift-Alarm-v1.2.3.apk
           if-no-files-found: error
 
       - name: Remove temporary signing key
