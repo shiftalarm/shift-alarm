@@ -79,12 +79,12 @@ jobs:
       - name: Rename APK with version
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/release/app-release.apk release/Shift-Alarm-v1.1.0-release.apk
+          cp app/build/outputs/apk/release/app-release.apk release/Shift-Alarm-v1.1.1-app2-release.apk
 
       - name: Upload signed Shift Alarm APK
         uses: actions/upload-artifact@v4
         with:
-          name: Shift-Alarm-v1.1.0-release
-          path: release/Shift-Alarm-v1.1.0-release.apk
+          name: Shift-Alarm-v1.1.1-app2-release
+          path: release/Shift-Alarm-v1.1.1-app2-release.apk
           if-no-files-found: error
           retention-days: 30
