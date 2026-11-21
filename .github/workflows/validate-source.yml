@@ -1,6 +1,9 @@
 name: Validate Shift Alarm Source
 
 on:
+  push:
+    branches:
+      - 'fix/v1.2.3-reboot-from-1.2.2'
   workflow_dispatch:
 
 permissions:
