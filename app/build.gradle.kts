@@ -13,12 +13,12 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        // Keep the original package ID so this build remains the same Android app.
-        applicationId = "com.shiftalarm.app"
+        // Separate package ID so this release can be installed alongside the existing app.
+        applicationId = "com.shiftalarm.app2"
         minSdk = 30
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.1.0"
+        versionCode = 4
+        versionName = "1.1.1"
     }
 
     signingConfigs {
